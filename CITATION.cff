@@ -7,6 +7,7 @@ authors:
 version: 0.1.0
 date-released: 2026-07-21
 license: MIT
+repository-code: "https://github.com/tengruiyu950126-bit/MAS-DS"
 abstract: >-
   A local, deterministic multi-expert orchestration system for explainable
   dataframe and CSV preprocessing with contracts, validation, and rollback.
