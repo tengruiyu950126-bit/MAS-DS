@@ -1,0 +1,12 @@
+{
+  "protect_identifier_columns": true,
+  "protected_columns": [],
+  "allowed_operations": null,
+  "denied_operations": [
+    "strip_whitespace",
+    "normalize_case",
+    "normalize_category_typos"
+  ],
+  "outlier_action": "flag",
+  "columns": {}
+}

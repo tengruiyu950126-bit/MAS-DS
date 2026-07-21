@@ -1,0 +1,91 @@
+# Python environments (never publish local interpreters or installed packages)
+.venv/
+venv/
+env/
+
+# Python caches and build artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+build/
+dist/
+
+# Tests, coverage, and static-analysis caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Logs and local runtime artifacts
+*.log
+*streamlit_server_stdout*
+*streamlit_server_stderr*
+publication_audit.json
+
+# Temporary, staging, backup, and update artifacts
+*.tmp
+*.temp
+*.bak
+*.zip
+*.tar.gz
+*.staging.*
+.*.staging.*
+*sync_extract*/
+*sync_extraction*/
+*update_extract*/
+*backup*/
+MAS_DS_BACKUP_BEFORE_SYNC/
+
+# Generated outputs: reviewed summaries live in evaluation/results/public/
+outputs/
+
+# Local/private/user-provided datasets and generated data products
+data/uploads/
+data/private/
+data/generated/
+*uploaded*.csv
+*processed*.csv
+*cleaned*.csv
+*dirty_preview*.csv
+*processed_preview*.csv
+*change_audit*.csv
+*stress_test*.csv
+*million*.csv
+
+# Curated deterministic sample datasets are intentionally publishable
+!data/samples/
+!data/samples/*.csv
+
+# Personal/local report bundle retained in the working tree only
+HAND_DS_BOOK/
+*.docx
+*.pdf
+
+# Databases and model weights
+*.db
+*.sqlite
+*.sqlite3
+*.mdb
+*.accdb
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.safetensors
+
+# Local agent/editor metadata and operating-system noise
+.agents/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,63 @@
+order_id,quantity,unit_price,discount_rate,region,channel,category,order_date
+ORD-00001,1.0,19.99,0.0,APAC,online,hardware,2025-03-01
+ORD-00002,2.0,24.74,0.03,EMEA,retail,software,2025-03-02
+ORD-00003,3.0,29.49,0.06,North America,partner,service,2025-03-03
+ORD-00004,4.0,34.24,0.09,,online,subscription,2025-03-04
+ORD-00005,5.0,38.99,0.12,APAC,,hardware,2025-03-05
+ORD-00006,6.0,43.74,0.0,EMEA,partner,software,2025-03-06
+ORD-00007,7.0,48.49,0.03,North America,online,service,2025-03-07
+ORD-00008,1.0,53.24,0.06,LATAM,retail,subscription,2025-03-08
+ORD-00009,2.0,57.99,0.09,APAC,,hardware,2025-03-09
+ORD-00010,3.0,62.74,0.12,EMEA,online,software,2025-03-10
+ORD-00011,4.0,67.49,0.0,North America,retail,service,2025-03-11
+ORD-00012,5.0,,0.03,LATAM,partner,subscription,2025-03-12
+ORD-00013,6.0,76.99,,APAC,online,hardware,2025-03-13
+ORD-00014,7.0,19.99,0.09,EMEA,retail,software,2025-03-14
+ORD-00015,1.0,24.74,0.12,North America,partner,service,2025-03-15
+ORD-00016,2.0,29.49,0.0,LATAM,online,subscription,2025-03-16
+ORD-00017,3.0,34.24,0.03,APAC,retail,hardware,2025-03-17
+ORD-00018,4.0,38.99,0.06,,partner,software,2025-03-18
+ORD-00019,5.0,43.74,0.09,North America,,service,2025-03-19
+ORD-00020,6.0,48.49,0.12,LATAM,retail,subscription,2025-03-20
+ORD-00021,,53.24,0.0,APAC,partner,hardware,2025-03-21
+ORD-00022,1.0,57.99,0.03,EMEA,,software,2025-03-22
+ORD-00023,2.0,62.74,0.06,North America,retail,service,2025-03-23
+ORD-00024,3.0,67.49,0.09,LATAM,partner,subscription,2025-03-24
+ORD-00025,4.0,72.24,,APAC,online,hardware,2025-03-25
+ORD-00026,5.0,76.99,0.0,EMEA,retail,software,2025-03-26
+ORD-00027,6.0,19.99,0.03,North America,partner,service,2025-03-27
+ORD-00028,7.0,24.74,0.06,,online,subscription,2025-03-28
+ORD-00029,1.0,29.49,0.09,APAC,retail,hardware,
+ORD-00030,2.0,34.24,0.12,EMEA,partner,software,2025-03-30
+ORD-00031,3.0,38.99,0.0,North America,online,service,2025-03-31
+ORD-00032,4.0,43.74,0.03,LATAM,retail,subscription,2025-04-01
+ORD-00033,5.0,48.49,0.06,APAC,partner,hardware,2025-04-02
+ORD-00034,6.0,53.24,0.09,EMEA,online,software,2025-04-03
+ORD-00035,7.0,57.99,0.12,North America,retail,service,2025-04-04
+ORD-00036,1.0,62.74,,,partner,subscription,2025-04-05
+ORD-00037,2.0,67.49,0.03,APAC,online,hardware,2025-04-06
+ORD-00038,3.0,72.24,0.06,EMEA,retail,software,2025-04-07
+ORD-00039,4.0,76.99,0.09,North America,partner,service,2025-04-08
+ORD-00040,5.0,19.99,0.12,LATAM,online,subscription,2025-04-09
+ORD-00041,6.0,24.74,0.0,APAC,retail,hardware,2025-04-10
+ORD-00042,7.0,29.49,0.03,EMEA,partner,software,
+ORD-00043,1.0,34.24,0.06,North America,online,service,2025-04-12
+ORD-00044,2.0,38.99,0.09,LATAM,retail,subscription,2025-04-13
+ORD-00045,3.0,43.74,0.12,APAC,partner,hardware,2025-04-14
+ORD-00046,4.0,48.49,0.0,EMEA,online,software,2025-04-15
+ORD-00047,5.0,53.24,0.03,North America,retail,service,2025-04-16
+ORD-00048,6.0,57.99,0.06,LATAM,partner,subscription,2025-04-17
+ORD-00049,7.0,62.74,0.09,APAC,online,hardware,2025-04-18
+ORD-00050,1.0,67.49,0.12,EMEA,retail,software,2025-04-19
+ORD-00051,2.0,72.24,0.0,North America,partner,service,2025-04-20
+ORD-00052,3.0,,0.03,LATAM,online,subscription,2025-04-21
+ORD-00053,4.0,19.99,0.06,APAC,retail,hardware,2025-04-22
+ORD-00054,5.0,24.74,0.09,EMEA,partner,software,2025-04-23
+ORD-00055,6.0,29.49,0.12,North America,online,service,2025-04-24
+ORD-00056,7.0,34.24,0.0,LATAM,retail,subscription,2025-04-25
+ORD-00057,1.0,38.99,0.03,APAC,partner,hardware,2025-04-26
+ORD-00058,2.0,43.74,0.06,EMEA,online,software,2025-04-27
+ORD-00059,3.0,48.49,0.09,North America,,service,2025-04-28
+ORD-00060,4.0,53.24,0.12,LATAM,partner,subscription,2025-04-29
+ORD-00009,2.0,57.99,0.09,APAC,,hardware,2025-03-09
+ORD-00049,7.0,62.74,0.09,APAC,online,hardware,2025-04-18

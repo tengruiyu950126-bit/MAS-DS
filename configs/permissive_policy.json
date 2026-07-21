@@ -1,0 +1,8 @@
+{
+  "protect_identifier_columns": false,
+  "protected_columns": [],
+  "allowed_operations": null,
+  "denied_operations": [],
+  "outlier_action": "flag",
+  "columns": {}
+}

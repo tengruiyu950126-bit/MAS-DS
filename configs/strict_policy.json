@@ -1,0 +1,13 @@
+{
+  "protect_identifier_columns": true,
+  "protected_columns": [
+    "email",
+    "phone_number"
+  ],
+  "allowed_operations": null,
+  "denied_operations": [
+    "normalize_category_typos"
+  ],
+  "outlier_action": "flag",
+  "columns": {}
+}

@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use MAS-DS, please cite this software."
+title: "MAS-DS: Local Multi-Expert Data Preprocessing"
+type: software
+authors:
+  - name: "MAS_DS contributors"
+version: 0.1.0
+date-released: 2026-07-21
+license: MIT
+abstract: >-
+  A local, deterministic multi-expert orchestration system for explainable
+  dataframe and CSV preprocessing with contracts, validation, and rollback.

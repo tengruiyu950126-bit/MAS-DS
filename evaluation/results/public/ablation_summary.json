@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "review_date": "2026-07-21",
+  "seeds": [0, 1, 2, 3, 4],
+  "scenario_count": 110,
+  "total_runs": 770,
+  "primary_results": {
+    "rule_baseline": {"detection_f1": 0.5165034965034965, "repair_success": 0.8636363636363636},
+    "multi_expert_full": {"detection_f1": 0.5713519813519814, "repair_success": 1.0},
+    "multi_expert_no_critic": {"detection_f1": 0.5713519813519814, "repair_success": 1.0},
+    "multi_expert_no_arbiter": {"detection_f1": 0.5713519813519814, "repair_success": 1.0},
+    "multi_expert_router_only": {"detection_f1": 0.5713519813519814, "repair_success": 1.0},
+    "multi_expert_oracle_router": {"detection_f1": 0.9806060606060606, "repair_success": 1.0},
+    "multi_expert_faulty_router": {"detection_f1": 0.4955032845941937, "repair_success": 0.7454545454545455}
+  },
+  "interpretation": {
+    "baseline_comparison": "Full Multi-Expert improved labeled detection and repair coverage over the rule baseline in this suite.",
+    "router_limitation": "Broad NumericExpert and CategoricalExpert activation caused low precision, high false routing, and zero clean routing no-op accuracy.",
+    "oracle_result": "Oracle routing produced 0.9806 mean detection F1, indicating routing selectivity is the largest measured opportunity.",
+    "critic_arbiter_limitation": "Removing Critic or Arbiter did not change aggregate natural-scenario repair; controlled unsafe/conflict fixtures demonstrated their safety behavior.",
+    "statistical_claim": "No statistical-significance claim is made."
+  }
+}
