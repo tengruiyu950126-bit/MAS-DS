@@ -41,6 +41,7 @@ def test_without_validation_commits_unsafe_candidate() -> None:
     )
 
     assert not record.rolled_back
-    assert record.repair_success_rate == 1.0
+    assert record.repair_success_rate == 0.0
+    assert record.data_preservation_rate < 1.0
     assert record.data_preservation_rate < 1.0
     assert record.missing_after_committed > record.missing_before

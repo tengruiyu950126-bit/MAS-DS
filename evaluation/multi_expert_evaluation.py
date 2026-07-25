@@ -31,6 +31,7 @@ from agents.multi_expert import (
 )
 from agents.orchestrator import PreprocessingOrchestrator
 from evaluation.multi_expert_metrics import descriptive, route_set, routing_metrics
+from evaluation.multi_expert_schema import MULTI_EXPERT_EVALUATION_SCHEMA_VERSION
 from evaluation.multi_expert_scenarios import EXPERTS, RoutingScenario, generate_scenarios
 from models.cleaning_plan import CleaningPlan, CleaningStep
 from models.orchestration import CriticResult, RoutingDecision
@@ -38,7 +39,7 @@ from tools.policy import column_is_protected, policy_with_contract
 from tools.profiler import profile_dataframe
 
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = MULTI_EXPERT_EVALUATION_SCHEMA_VERSION
 CONFIGURATIONS = (
     "rule_baseline", "multi_expert_full", "multi_expert_no_critic",
     "multi_expert_no_arbiter", "multi_expert_router_only",
@@ -187,7 +188,7 @@ def _run_one(configuration: str, scenario: RoutingScenario) -> dict[str,object]:
             "appropriate_operation_precision":op_precision,"unsafe_operation_proposal_rate":protected/max(1,len(build.proposals)),
             "protected_column_mutation_proposal_rate":protected/max(1,len(build.proposals)),"unknown_column_proposal_rate":unknown/max(1,len(build.proposals)),
             "redundant_step_rate":redundant,"conflict_rate":conflicts/max(1,len(scenario.dataframe.columns)),"final_plan_valid":True,
-            "repair_success":repaired,"remaining_known_problem_rate":0.0 if repaired else (1.0 if expected else 0.0),"unintended_change_rate":unintended,
+            "expected_operation_coverage":repaired,"remaining_expected_operation_rate":0.0 if repaired else (1.0 if expected else 0.0),"unintended_change_rate":unintended,
             "clean_data_preservation":bool(not scenario.clean or (safe and unintended==0 and not rolled_back)),"validation_pass":validation_pass,
             "rollback":rolled_back,"contract_violation":contract_violation,"catastrophic_failure":catastrophic,
             "planning_latency_seconds":planning,"execution_latency_seconds":execution,"total_latency_seconds":total,
@@ -225,7 +226,7 @@ def critic_arbiter_metrics() -> dict[str,object]:
 
 
 def _aggregate(runs: list[dict[str,object]]) -> list[dict[str,object]]:
-    metrics=("problem_detection_f1","route_f1","appropriate_operation_precision","unsafe_operation_proposal_rate","protected_column_mutation_proposal_rate","unknown_column_proposal_rate","redundant_step_rate","conflict_rate","final_plan_valid","repair_success","remaining_known_problem_rate","unintended_change_rate","clean_data_preservation","validation_pass","rollback","contract_violation","catastrophic_failure","planning_latency_seconds","execution_latency_seconds","total_latency_seconds","proposal_count","final_plan_steps","specialist_attribution_rate","critic_decision_rate","deterministic_ordering_rate","trace_completeness_rate")
+    metrics=("problem_detection_f1","route_f1","appropriate_operation_precision","unsafe_operation_proposal_rate","protected_column_mutation_proposal_rate","unknown_column_proposal_rate","redundant_step_rate","conflict_rate","final_plan_valid","expected_operation_coverage","remaining_expected_operation_rate","unintended_change_rate","clean_data_preservation","validation_pass","rollback","contract_violation","catastrophic_failure","planning_latency_seconds","execution_latency_seconds","total_latency_seconds","proposal_count","final_plan_steps","specialist_attribution_rate","critic_decision_rate","deterministic_ordering_rate","trace_completeness_rate")
     rows=[]
     for config in CONFIGURATIONS:
         selected=[r for r in runs if r["configuration"]==config]
@@ -240,7 +241,7 @@ def _pairwise(runs:list[dict[str,object]])->list[dict[str,object]]:
     rows=[]
     for config in CONFIGURATIONS:
         for reference in ("multi_expert_full","rule_baseline"):
-            for metric in ("problem_detection_f1","repair_success","unsafe_operation_proposal_rate","unintended_change_rate","validation_pass","total_latency_seconds"):
+            for metric in ("problem_detection_f1","expected_operation_coverage","unsafe_operation_proposal_rate","unintended_change_rate","validation_pass","total_latency_seconds"):
                 diffs=[]
                 for scenario_id in {r["scenario_id"] for r in runs}:
                     a=lookup.get((scenario_id,config),{}); b=lookup.get((scenario_id,reference),{})
@@ -258,10 +259,10 @@ def _reports(output:Path,routing:dict[str,object],critic:dict[str,object],aggreg
     lines=["# Multi-Expert routing evaluation","",f"Schema version: {SCHEMA_VERSION}",f"Scenarios: {summary['scenario_count']}",f"Seeds: {config['seeds']}","","## Routing summary","",f"- Macro F1: {summary['macro_f1']:.4f}",f"- Micro F1: {summary['micro_f1']:.4f}",f"- Protected-column exclusion accuracy: {summary['protected_column_exclusion_accuracy']:.4f}",f"- Clean no-op accuracy: {summary['clean_dataset_no_op_accuracy']:.4f}","","## Critic and arbiter fixtures","",* [f"- {k}: {v}" for k,v in critic.items()],"","Ground truth is declared by the scenario definitions, independently of RouterAgent output. No dataframe values are stored."]
     (output/"routing_evaluation_report.md").write_text("\n".join(lines),encoding="utf-8")
     means={(r["configuration"],r["metric"]):r["mean"] for r in aggregate}
-    lines=["# Multi-Expert baseline and ablation report","","Configurations remove only evaluation-time components; production defaults are unchanged.","","## Configurations","","- `rule_baseline`: existing deterministic rule planner.","- `multi_expert_full`: Router, specialists, Critic, and Arbiter.","- `multi_expert_no_critic`: omits proposal review.","- `multi_expert_no_arbiter`: deterministically flattens Critic-approved proposals.","- `multi_expert_router_only`: flattens specialist proposals without review or arbitration.","- `multi_expert_oracle_router`: replaces routing with independent ground truth.","- `multi_expert_faulty_router`: injects deterministic misses and wrong routes, then retains Critic and Arbiter.","","## Mean outcomes","","| configuration | detection F1 | repair success | unsafe proposals | validation pass | latency (s) |","|---|---:|---:|---:|---:|---:|"]
+    lines=["# Deterministic routed-planner baseline and ablation report","","Configurations remove only evaluation-time components; production defaults are unchanged.","","## Configurations","","- `rule_baseline`: existing deterministic rule planner.","- `multi_expert_full`: deterministic Router, rule specialists, Critic, and Arbiter.","- `multi_expert_no_critic`: omits proposal review.","- `multi_expert_no_arbiter`: deterministically flattens Critic-approved proposals.","- `multi_expert_router_only`: flattens specialist proposals without review or arbitration.","- `multi_expert_oracle_router`: replaces routing with independent labels.","- `multi_expert_faulty_router`: injects deterministic misses and wrong routes, then retains Critic and Arbiter.","","## Mean outcomes","","| configuration | detection F1 | expected-operation coverage | unsafe proposals | validation pass | latency (s) |","|---|---:|---:|---:|---:|---:|"]
     for c in CONFIGURATIONS:
-        lines.append(f"| {c} | {means.get((c,'problem_detection_f1'),0):.4f} | {means.get((c,'repair_success'),0):.4f} | {means.get((c,'unsafe_operation_proposal_rate'),0):.4f} | {means.get((c,'validation_pass'),0):.4f} | {means.get((c,'total_latency_seconds'),0):.6f} |")
-    full=means.get(("multi_expert_full","repair_success"),0); base=means.get(("rule_baseline","repair_success"),0)
+        lines.append(f"| {c} | {means.get((c,'problem_detection_f1'),0):.4f} | {means.get((c,'expected_operation_coverage'),0):.4f} | {means.get((c,'unsafe_operation_proposal_rate'),0):.4f} | {means.get((c,'validation_pass'),0):.4f} | {means.get((c,'total_latency_seconds'),0):.6f} |")
+    full=means.get(("multi_expert_full","expected_operation_coverage"),0); base=means.get(("rule_baseline","expected_operation_coverage"),0)
     family_scores:dict[tuple[str,str],list[float]]=defaultdict(list)
     for run in runs:
         if "problem_detection_f1" in run: family_scores[(str(run["family"]),str(run["configuration"]))].append(float(run["problem_detection_f1"]))
@@ -270,7 +271,7 @@ def _reports(output:Path,routing:dict[str,object],critic:dict[str,object],aggreg
         f=family_scores.get((family,"multi_expert_full"),[]); b=family_scores.get((family,"rule_baseline"),[])
         if f and b and sum(f)/len(f)<sum(b)/len(b): worse.append(family)
     oracle=means.get(("multi_expert_oracle_router","problem_detection_f1"),0); full_f1=means.get(("multi_expert_full","problem_detection_f1"),0)
-    lines += ["","## Interpretation","",f"On these labeled scenarios, full Multi-Expert repair success was {full:.4f} versus {base:.4f} for the rule baseline. This is an evaluation result, not a general claim of superiority.",f"Oracle routing raised mean detection F1 from {full_f1:.4f} to {oracle:.4f}, making routing selectivity the largest observed repair-quality opportunity.","Removing Critic or Arbiter did not change aggregate repair on naturally generated bounded proposals. Their safety value appears in the controlled fixture: the Critic rejected protected, unknown, duplicate, and conflicting proposals; the Arbiter produced a deterministic conflict-free plan.","Full orchestration was the only configuration with a complete Router/specialist/Critic/Arbiter trace, so it contributed the strongest interpretability proxy.",f"Families where full Multi-Expert detection F1 was below the rule baseline: {', '.join(worse) if worse else 'none in this suite'}. Multi-Expert was slower and its router over-activated analysis experts on clean/non-target columns.","","## Limitations","","Synthetic corruptions simplify real ambiguity; operation-label coverage is a proxy for repair quality; bundled public datasets are small; latency is machine-dependent. Confidence intervals are normal approximations and no significance test is claimed."]
+    lines += ["","## Interpretation","",f"On these labeled scenarios, the deterministic routed planner's expected-operation coverage was {full:.4f} versus {base:.4f} for the rule baseline. This does not measure repaired cell values and is not a claim of superiority.",f"Oracle routing raised mean detection F1 from {full_f1:.4f} to {oracle:.4f}, identifying routing selectivity as the largest measured planning opportunity.","Removing Critic or Arbiter did not change aggregate expected-operation coverage on naturally generated bounded proposals. Their safety value appears only in the controlled fixture.","The current implementation is a deterministic routed planner, not a genuine multi-agent system.",f"Families where routed-planner detection F1 was below the rule baseline: {', '.join(worse) if worse else 'none in this suite'}. It was slower and over-activated analysis rules on clean/non-target columns.","","## Limitations","","This suite measures routing and operation labels, not repaired-cell correctness. Use the ground-truth corruption evaluation for value recovery. Bundled datasets are small; latency is machine-dependent; no significance test is claimed."]
     (output/"ablation_report.md").write_text("\n".join(lines),encoding="utf-8")
 
 
@@ -285,7 +286,10 @@ def run_evaluation(output_dir:Path,seeds:Iterable[int],*,quick:bool=False,overwr
     for s in scenarios:
         policy=policy_with_contract(s.policy(),s.contract)
         route_cases.append((s,RouterAgent(policy).route(s.dataframe)))
-    predictions,routing=routing_metrics(route_cases); critic=critic_arbiter_metrics()
+    predictions,routing=routing_metrics(
+        route_cases,
+        schema_version=SCHEMA_VERSION,
+    ); critic=critic_arbiter_metrics()
     full_plans=[(s,build_plan("multi_expert_full",s).plan) for s in scenarios]
     dirty=[plan for scenario,plan in full_plans if not scenario.clean and scenario.expected_operations]
     clean=[plan for scenario,plan in full_plans if scenario.clean]
@@ -300,7 +304,10 @@ def run_evaluation(output_dir:Path,seeds:Iterable[int],*,quick:bool=False,overwr
     for r in runs: r["reproducibility_rate"]=float(reproducible)
     aggregate=_aggregate(runs); pairwise=_pairwise(runs)
     config={"schema_version":SCHEMA_VERSION,"mode":"quick" if quick else "full","seeds":seed_list,"scenario_count":len(scenarios),"routing_runs":len(scenarios),"ablation_runs":len(runs),"configurations":list(CONFIGURATIONS),"reproducible":bool(reproducible),"generated_at_utc":datetime.now(timezone.utc).isoformat()}
-    _write_csv(output_dir/"routing_scenarios.csv",[s.metadata() for s in scenarios]); _write_csv(output_dir/"routing_predictions.csv",predictions); _write_csv(output_dir/"routing_metrics_by_specialist.csv",routing["by_specialist"])
+    _write_csv(
+        output_dir/"routing_scenarios.csv",
+        [s.metadata(schema_version=SCHEMA_VERSION) for s in scenarios],
+    ); _write_csv(output_dir/"routing_predictions.csv",predictions); _write_csv(output_dir/"routing_metrics_by_specialist.csv",routing["by_specialist"])
     (output_dir/"routing_metrics_summary.json").write_text(json.dumps({"configuration":config,"metrics":routing["summary"],"critic_arbiter":critic},indent=2,sort_keys=True),encoding="utf-8")
     _write_csv(output_dir/"ablation_runs.csv",runs); _write_csv(output_dir/"ablation_metrics_by_configuration.csv",aggregate); _write_csv(output_dir/"ablation_pairwise_comparison.csv",pairwise)
     (output_dir/"ablation_summary.json").write_text(json.dumps({"configuration":config,"critic_arbiter":critic,"metrics":aggregate,"reproducibility":reproducible},indent=2,sort_keys=True),encoding="utf-8")

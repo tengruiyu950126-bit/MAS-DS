@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-import io
+import html
 import os
 from pathlib import Path
 
@@ -37,6 +37,12 @@ from tools.orchestration_export import (
     safe_orchestration_trace_filename,
 )
 from tools.reporting import build_cleaning_report, build_report_filename
+from tools.ingestion import (
+    CSVIngestionError,
+    DEFAULT_CSV_LIMITS,
+    load_csv_bytes,
+)
+from tools.export_safety import neutralize_spreadsheet_formulas
 from tools.ui_tables import (
     arbiter_trace_frame,
     changed_columns_frame,
@@ -56,7 +62,7 @@ from tools.ui_tables import (
     validation_issues_frame,
     validation_summary_frame,
 )
-from workflow.graph import PreprocessingGraphOrchestrator
+from agents.orchestrator import PreprocessingOrchestrator
 
 
 POLICY_OPERATIONS = [
@@ -134,8 +140,8 @@ def _show_header() -> None:
         <div class="mas-hero">
             <h1>MAS-DS Data Preprocessing</h1>
             <p>
-                A free local multi-agent system for safe, auditable tabular-data
-                preprocessing.
+                A local policy-constrained data-cleaning system with deterministic
+                execution, validation, and rollback.
             </p>
             <span class="mas-badge">$0 local rule mode</span>
             <span class="mas-badge">Human approval</span>
@@ -287,17 +293,17 @@ def _build_orchestrator(
     policy: PreprocessingPolicy,
     contract: DataContract | None = None,
 ) -> tuple[
-    PreprocessingGraphOrchestrator,
+    PreprocessingOrchestrator,
     str,
     MultiExpertCleaningAgent | None,
 ]:
-    if planner_mode in {"Rule-based baseline", "Multi-Expert"}:
+    if planner_mode in {"Rule-based baseline", "Deterministic routed planner"}:
         planner = build_offline_planner(planner_mode, policy, contract)
         multi_expert_agent = (
             planner if isinstance(planner, MultiExpertCleaningAgent) else None
         )
         return (
-            PreprocessingGraphOrchestrator(
+            PreprocessingOrchestrator(
                 cleaning_agent=planner,
                 policy=policy,
                 contract=contract,
@@ -319,15 +325,36 @@ def _build_orchestrator(
     )
     if not ollama_model.strip():
         st.sidebar.warning("Enter an installed Ollama model; using rule baseline.")
-        return PreprocessingGraphOrchestrator(policy=policy, contract=contract), planner_name, None
+        return PreprocessingOrchestrator(policy=policy, contract=contract), planner_name, None
 
+    remote_opt_in = st.sidebar.checkbox(
+        "Allow a non-local model endpoint",
+        value=False,
+        help=(
+            "Remote endpoints receive dataset metadata and any explicitly "
+            "enabled sample rows. Leave disabled for local-only processing."
+        ),
+    )
+    include_sample_rows = st.sidebar.checkbox(
+        "Send up to 3 sample rows to the model",
+        value=False,
+        help=(
+            "Off by default. When off, model planning sends profile metadata "
+            "and column names but no dataframe cell values."
+        ),
+    )
     llm_agent = LocalLLMCleaningAgent(
-        OllamaClient(model=ollama_model.strip(), base_url=ollama_url.strip()),
+        OllamaClient(
+            model=ollama_model.strip(),
+            base_url=ollama_url.strip(),
+            allow_remote=remote_opt_in,
+        ),
+        sample_rows=3 if include_sample_rows else 0,
         policy=policy,
     )
     if planner_mode == "Hybrid rule + Ollama":
         return (
-            PreprocessingGraphOrchestrator(
+            PreprocessingOrchestrator(
                 cleaning_agent=HybridCleaningAgent(llm_agent, policy=policy),
                 policy=policy,
                 contract=contract,
@@ -336,7 +363,7 @@ def _build_orchestrator(
             None,
         )
     return (
-        PreprocessingGraphOrchestrator(cleaning_agent=llm_agent, policy=policy, contract=contract),
+        PreprocessingOrchestrator(cleaning_agent=llm_agent, policy=policy, contract=contract),
         f"Local Ollama: {ollama_model.strip()}",
         None,
     )
@@ -373,18 +400,25 @@ def _load_data_source() -> tuple[pd.DataFrame | None, bytes | None, str]:
     if uploaded_file is None:
         return None, None, "upload:empty"
     file_bytes = uploaded_file.getvalue()
-    dataframe = pd.read_csv(io.BytesIO(file_bytes))
+    try:
+        dataframe = load_csv_bytes(file_bytes)
+    except CSVIngestionError as exc:
+        st.error(str(exc))
+        st.info(
+            "For larger files, use `python -m scripts.run_chunked_preprocessing`."
+        )
+        return None, None, "upload:rejected"
     return dataframe, file_bytes, f"upload:{uploaded_file.name}"
 
 
 def _show_workflow(planner_name: str) -> None:
-    st.subheader("Agent workflow")
+    st.subheader("Preprocessing workflow")
     columns = st.columns(4)
     steps = [
-        ("1. Profiling expert", "Scans schema, missing values, duplicates, dtypes."),
+        ("1. Profile", "Scans schema, missing values, duplicates, dtypes."),
         ("2. Cleaning planner", planner_name),
         ("3. Human approval", "You review the proposed actions before execution."),
-        ("4. Validation expert", "Commits safe results or rolls back risky changes."),
+        ("4. Validation & rollback", "Commits safe results or rolls back risky changes."),
     ]
     for column, (title, body) in zip(columns, steps, strict=True):
         with column:
@@ -403,8 +437,8 @@ def _show_readiness(
     st.markdown(
         f"""
         <div class="mas-callout">
-        <strong>Current run:</strong> {source_label} ·
-        <strong>Planner:</strong> {planner_name} ·
+        <strong>Current run:</strong> {html.escape(source_label)} ·
+        <strong>Planner:</strong> {html.escape(planner_name)} ·
         <strong>ID protection:</strong> {protected} ·
         <strong>Disabled ops:</strong> {denied}
         </div>
@@ -451,11 +485,11 @@ def _show_multi_expert_trace(
     provenance: object | None,
 ) -> None:
     """Render a read-only orchestration audit; never alter the plan."""
-    with st.expander("Multi-Expert Orchestration Trace", expanded=False):
+    with st.expander("Deterministic Planner Trace", expanded=False):
         if trace is None:
             st.info(
                 "No orchestration trace is available for this proposal. "
-                "Generate a plan with Multi-Expert mode to view it."
+                "Generate a plan with Deterministic routed planner mode to view it."
             )
             return
 
@@ -525,12 +559,13 @@ planner_mode = st.sidebar.radio(
         "Rule-based baseline",
         "Local Ollama model",
         "Hybrid rule + Ollama",
-        "Multi-Expert",
+        "Deterministic routed planner",
     ],
 )
 st.sidebar.info(
-    "Monetary cost: $0. Rule and Multi-Expert modes are fully deterministic; "
-    "Ollama modes use a local model installed on your machine."
+    "Rule-based and deterministic routed modes do not call a model. "
+    "Ollama-compatible modes send metadata to the configured endpoint; "
+    "sample cells are off by default."
 )
 
 policy = _build_policy()
@@ -587,7 +622,7 @@ try:
 except (OllamaError, LocalLLMPlanningError, ValueError) as exc:
     st.error(f"Local planner failed: {exc}")
     st.info("Falling back to the free rule-based cleaning expert.")
-    orchestrator = PreprocessingGraphOrchestrator(policy=policy, contract=contract)
+    orchestrator = PreprocessingOrchestrator(policy=policy, contract=contract)
     planner_name = "Rule-based fallback"
     proposal = orchestrator.propose(dataframe)
     st.session_state["proposal_key"] = proposal_key
@@ -624,7 +659,10 @@ preview_tab, profile_tab, contract_tab, plan_tab, execute_tab, experiment_tab = 
 )
 
 with preview_tab:
-    st.dataframe(dataframe.head(50), use_container_width=True)
+    st.dataframe(
+        dataframe.head(DEFAULT_CSV_LIMITS.preview_rows),
+        use_container_width=True,
+    )
 
 with profile_tab:
     st.caption(
@@ -653,7 +691,7 @@ with contract_tab:
 
 with plan_tab:
     st.caption(f"Planner used: {planner_name}")
-    if planner_mode == "Multi-Expert":
+    if planner_mode == "Deterministic routed planner":
         _show_multi_expert_trace(
             orchestration_trace,
             source_label,
@@ -701,6 +739,7 @@ with execute_tab:
                 st.session_state["outcome"] = orchestrator.execute_approved(
                     dataframe,
                     proposal.plan,
+                    run_id=proposal.run_id,
                 )
                 st.session_state["outcome_key"] = proposal_key
 
@@ -725,7 +764,11 @@ with execute_tab:
                 if outcome.contract_caused_rollback:
                     st.error("Rollback was caused by an error-level data-contract violation.")
 
-            diff = plan_diff_frame(dataframe, proposal.plan)
+            diff = plan_diff_frame(
+                dataframe,
+                proposal.plan,
+                max_total_changes=DEFAULT_CSV_LIMITS.max_diff_rows,
+            )
             result_frame = pd.DataFrame(
                 [
                     {
@@ -785,7 +828,9 @@ with execute_tab:
                 st.dataframe(diff, use_container_width=True, height=320)
                 st.download_button(
                     "Download change audit CSV",
-                    data=diff.to_csv(index=False).encode("utf-8"),
+                    data=neutralize_spreadsheet_formulas(diff)
+                    .to_csv(index=False)
+                    .encode("utf-8"),
                     file_name="change_audit.csv",
                     mime="text/csv",
                 )
@@ -810,6 +855,11 @@ with execute_tab:
                 data=_dataframe_bytes(outcome.dataframe),
                 file_name="processed_data.csv",
                 mime="text/csv",
+            )
+            st.caption(
+                "Processed CSV values are preserved exactly and may be interpreted "
+                "as formulas by spreadsheet software. Audit CSV exports neutralize "
+                "formula-like text."
             )
             report_markdown = build_cleaning_report(
                 before=dataframe,

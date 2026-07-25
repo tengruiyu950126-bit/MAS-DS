@@ -23,7 +23,7 @@ from evaluation.metrics import calculate_detection_metrics, calculate_repair_met
 from models.cleaning_plan import CleaningPlan
 from tools.chunked import execute_chunked_csv
 from tools.validation import validate_preprocessing
-from workflow.graph import PreprocessingGraphOrchestrator
+from agents.orchestrator import PreprocessingOrchestrator
 
 
 PublicDatasetName = Literal["iris", "wine", "breast_cancer", "diabetes"]
@@ -209,7 +209,7 @@ def _evaluate_public_dataset_once(
 
         if runner == "in_memory_rule":
             planner = RuleBasedCleaningAgent()
-            orchestrator = PreprocessingGraphOrchestrator(cleaning_agent=planner)
+            orchestrator = PreprocessingOrchestrator(cleaning_agent=planner)
             proposal = orchestrator.propose(case.corrupted)
             outcome = orchestrator.execute_approved(case.corrupted, proposal.plan)
             plan = proposal.plan

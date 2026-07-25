@@ -23,7 +23,7 @@ from evaluation.metrics import calculate_detection_metrics, calculate_repair_met
 from models.policy import PreprocessingPolicy
 from providers.ollama import OllamaClient
 from tools.policy import load_policy_file
-from workflow.graph import PreprocessingGraphOrchestrator
+from agents.orchestrator import PreprocessingOrchestrator
 
 
 CORRUPTION_TYPES: list[CorruptionType] = [
@@ -57,7 +57,7 @@ class ExperimentRecord:
 def build_planner(
     method: str,
     model: str,
-    timeout_seconds: float = 180,
+    timeout_seconds: float = 30,
     policy: PreprocessingPolicy | None = None,
 ):
     if method == "rule":
@@ -82,7 +82,7 @@ def evaluate_once(
     fraction: float,
     model: str,
     dataset_name: str = "custom",
-    timeout_seconds: float = 180,
+    timeout_seconds: float = 30,
     policy: PreprocessingPolicy | None = None,
 ) -> ExperimentRecord:
     case = inject_corruption(
@@ -92,7 +92,7 @@ def evaluate_once(
         seed=seed,
     )
     planner = build_planner(method, model, timeout_seconds, policy=policy)
-    orchestrator = PreprocessingGraphOrchestrator(
+    orchestrator = PreprocessingOrchestrator(
         cleaning_agent=planner,
         policy=policy,
     )
@@ -168,7 +168,7 @@ def parse_args() -> argparse.Namespace:
         default=["demo"],
     )
     parser.add_argument("--model", default="qwen3:4b")
-    parser.add_argument("--timeout", type=float, default=180)
+    parser.add_argument("--timeout", type=float, default=30)
     parser.add_argument(
         "--policy",
         default=None,

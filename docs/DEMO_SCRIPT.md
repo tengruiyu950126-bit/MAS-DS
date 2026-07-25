@@ -50,13 +50,13 @@ Use this path when you want a reliable demo with zero monetary cost.
 
 Short explanation:
 
-> MAS-DS is a local multi-agent preprocessing system. It profiles a CSV, creates
+> MAS-DS is a local preprocessing workflow. It profiles a CSV, creates
 > a structured cleaning plan, asks for human approval, executes only safe
 > whitelisted operations, validates the result, and rolls back unsafe changes.
 > The important part is not just automatic cleaning; it is auditability and
 > safety.
 
-Point out the multi-agent design:
+Point out the deterministic safety design:
 
 - Profiling expert understands the dataset.
 - Cleaning planner proposes safe operations.
@@ -112,18 +112,21 @@ Run:
 pytest
 ```
 
-Current verified status:
+Latest local offline verification on 2026-07-25:
 
 ```text
-116 passed
+229 passed, 2 skipped
 ```
+
+The two skips require optional scikit-learn bundled public datasets that were
+unavailable in the verified environment.
 
 ## 7. Suggested 60-second pitch
 
-> This project builds a local multi-agent preprocessing system for tabular data.
+> This project builds a local preprocessing workflow for tabular data.
 > Instead of letting an LLM directly mutate data, MAS-DS separates the workflow
 > into profiling, planning, human approval, safe execution, validation, and
 > reporting. It supports deterministic rule mode, optional local Ollama mode,
 > and hybrid orchestration. The system is fully local, can run for zero monetary
 > cost, and includes policy control, rollback, cell-level change audit,
-> experiment summaries, and 116 tests.
+> experiment summaries, and an offline regression suite.

@@ -80,3 +80,12 @@ def test_diff_summary_counts_changes_by_operation() -> None:
     assert summary.iloc[0]["column"] == "age"
     assert summary.iloc[0]["change_type"] == "value_changed"
     assert summary.iloc[0]["changes"] == 1
+
+
+def test_plan_diff_caps_total_audit_rows() -> None:
+    dataframe = pd.DataFrame({"value": [None] * 20 + [1.0]})
+    plan = CleaningPlan(steps=[step("fill_median", "value")])
+
+    diff = plan_diff_frame(dataframe, plan, max_total_changes=5)
+
+    assert len(diff) == 5

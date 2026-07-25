@@ -26,6 +26,7 @@ class CorruptionRecord:
     column: str | None
     original_value: Any
     corrupted_value: Any
+    expected_behavior: Literal["restore_value", "remove_duplicate"]
 
 
 @dataclass(frozen=True)
@@ -104,8 +105,9 @@ def inject_corruption(
                     error_type=error_type,
                     row_id=int(clean.at[row_index, ROW_ID_COLUMN]),
                     column=None,
-                    original_value=None,
-                    corrupted_value="duplicated",
+                    original_value=clean.loc[row_index].to_dict(),
+                    corrupted_value=clean.loc[row_index].to_dict(),
+                    expected_behavior="remove_duplicate",
                 )
             )
     elif error_type == "missing_value":
@@ -122,6 +124,7 @@ def inject_corruption(
                     column=column,
                     original_value=original,
                     corrupted_value=None,
+                    expected_behavior="restore_value",
                 )
             )
     elif error_type == "numeric_type":
@@ -149,6 +152,7 @@ def inject_corruption(
                     column=column,
                     original_value=original,
                     corrupted_value=corrupted_value,
+                    expected_behavior="restore_value",
                 )
             )
     elif error_type == "datetime_type":
@@ -175,6 +179,7 @@ def inject_corruption(
                     column=column,
                     original_value=original,
                     corrupted_value=corrupted_value,
+                    expected_behavior="restore_value",
                 )
             )
     else:

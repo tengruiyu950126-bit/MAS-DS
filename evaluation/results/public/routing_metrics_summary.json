@@ -1,0 +1,63 @@
+{
+  "configuration": {
+    "ablation_runs": 700,
+    "configurations": [
+      "rule_baseline",
+      "multi_expert_full",
+      "multi_expert_no_critic",
+      "multi_expert_no_arbiter",
+      "multi_expert_router_only",
+      "multi_expert_oracle_router",
+      "multi_expert_faulty_router"
+    ],
+    "generated_at_utc": "2026-07-25T12:15:44.693077+00:00",
+    "mode": "full",
+    "reproducible": true,
+    "routing_runs": 100,
+    "scenario_count": 100,
+    "schema_version": "2.0",
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ]
+  },
+  "critic_arbiter": {
+    "conflict_count": 1,
+    "conflict_resolution_rate": 1.0,
+    "correct_no_op_rate_on_clean_datasets": 0.2,
+    "correct_rejection_rate": 1.0,
+    "critic_approval_rate": 0.16666666666666666,
+    "critic_rejection_rate": 0.8333333333333334,
+    "deterministic_ordering_consistency": 1.0,
+    "duplicate_proposal_removal_rate": 1.0,
+    "empty_plan_rate_on_dirty_datasets": 0.0,
+    "false_rejection_rate": 0.0,
+    "final_plan_validity_rate": 1.0,
+    "protected_column_mutation_rate": 0.0,
+    "total_proposals": 6,
+    "unknown_column_proposal_rate": 0.0
+  },
+  "metrics": {
+    "clean_dataset_no_op_accuracy": 0.0,
+    "evaluation_unit": "scenario-column-specialist assignment",
+    "exact_routing_accuracy": 0.0,
+    "false_routing_rate": 0.7162162162162162,
+    "macro_f1": 0.7116883116883117,
+    "macro_precision": 0.6655982905982906,
+    "macro_recall": 0.9666666666666667,
+    "micro_f1": 0.43749999999999994,
+    "micro_precision": 0.28378378378378377,
+    "micro_recall": 0.9545454545454546,
+    "missed_routing_rate": 0.045454545454545456,
+    "multi_label_exact_match_ratio": 0.0,
+    "protected_column_exclusion_accuracy": 1.0,
+    "routing_conflict_rate": 0.1044776119402985,
+    "scenario_count": 100,
+    "schema_version": "2.0",
+    "specialist_coverage": 1.0,
+    "unnecessary_specialist_activation_rate": 0.7162162162162162
+  }
+}

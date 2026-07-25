@@ -18,7 +18,7 @@ from tools.data_contract import (
 from tools.chunked import ChunkedTransactionError, execute_chunked_csv
 from tools.policy import policy_with_contract
 from tools.ui_tables import contract_findings_frame, contract_summary_frame
-from workflow.graph import PreprocessingGraphOrchestrator
+from agents.orchestrator import PreprocessingOrchestrator
 
 
 def step(operation: str, column: str | None = None) -> CleaningStep:
@@ -145,7 +145,7 @@ def test_multi_expert_contract_protection_prevents_proposals() -> None:
 def test_precleaning_result_is_attached_and_repairable_error_can_execute() -> None:
     contract = DataContract(name="non-null", columns={"age": ColumnContract(nullable=False)})
     dataframe = pd.DataFrame({"age": [10.0, None, 30.0]})
-    orchestrator = PreprocessingGraphOrchestrator(contract=contract)
+    orchestrator = PreprocessingOrchestrator(contract=contract)
     proposal = orchestrator.propose(dataframe)
     outcome = orchestrator.execute_approved(dataframe, proposal.plan)
 
@@ -159,7 +159,7 @@ def test_precleaning_result_is_attached_and_repairable_error_can_execute() -> No
 def test_postcleaning_contract_error_triggers_existing_rollback() -> None:
     contract = DataContract(name="range", columns={"age": ColumnContract(numeric_max=100)})
     dataframe = pd.DataFrame({"age": [10, 500]})
-    orchestrator = PreprocessingGraphOrchestrator(contract=contract)
+    orchestrator = PreprocessingOrchestrator(contract=contract)
     outcome = orchestrator.execute_approved(dataframe, CleaningPlan(steps=[]))
 
     assert outcome.rolled_back
@@ -173,7 +173,7 @@ def test_warning_only_postcleaning_contract_does_not_trigger_rollback() -> None:
         "age": ColumnContract(numeric_max=100, severity="warning")
     })
     dataframe = pd.DataFrame({"age": [10, 500]})
-    outcome = PreprocessingGraphOrchestrator(contract=contract).execute_approved(
+    outcome = PreprocessingOrchestrator(contract=contract).execute_approved(
         dataframe, CleaningPlan(steps=[])
     )
 
@@ -186,7 +186,7 @@ def test_missing_required_column_blocks_plan_execution_without_running_steps() -
     contract = DataContract(name="structure", required_columns=["id"], protected_columns=["id"])
     dataframe = pd.DataFrame({"age": [1, None]})
     plan = CleaningPlan(steps=[step("fill_median", "age")])
-    outcome = PreprocessingGraphOrchestrator(contract=contract).execute_approved(dataframe, plan)
+    outcome = PreprocessingOrchestrator(contract=contract).execute_approved(dataframe, plan)
 
     assert outcome.rolled_back
     assert outcome.contract_caused_rollback
@@ -196,7 +196,7 @@ def test_missing_required_column_blocks_plan_execution_without_running_steps() -
 
 def test_no_contract_preserves_existing_behavior() -> None:
     dataframe = pd.DataFrame({"age": [10.0, None, 30.0]})
-    orchestrator = PreprocessingGraphOrchestrator()
+    orchestrator = PreprocessingOrchestrator()
     proposal = orchestrator.propose(dataframe)
     outcome = orchestrator.execute_approved(dataframe, proposal.plan)
 

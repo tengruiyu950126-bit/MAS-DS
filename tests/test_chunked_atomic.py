@@ -350,3 +350,20 @@ def test_cli_returns_zero_only_for_commit_and_nonzero_for_contract_failure(tmp_p
     failure_text = capsys.readouterr().out
     assert "Final status: rolled_back" in failure_text
     assert not failed_output.exists()
+
+
+def test_existing_output_lock_rejects_concurrent_writer(tmp_path) -> None:
+    source = tmp_path / "input.csv"
+    output = tmp_path / "output.csv"
+    source.write_text("value\n1\n2\n", encoding="utf-8")
+    output.write_text("value\noriginal\n", encoding="utf-8")
+    lock = tmp_path / ".output.csv.masds.lock"
+    lock.write_text("other-transaction", encoding="utf-8")
+
+    result = execute_chunked_csv_atomic(source, output, chunk_size=1)
+
+    assert result.status == "failed"
+    assert result.failure_stage == "output_lock"
+    assert "Another chunked transaction" in (result.error_message or "")
+    assert output.read_text(encoding="utf-8") == "value\noriginal\n"
+    assert lock.read_text(encoding="utf-8") == "other-transaction"

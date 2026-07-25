@@ -381,6 +381,8 @@ def execute_chunked_csv_atomic(
     output_raw = Path(output_csv)
     source_path = source_raw.resolve(strict=False)
     output_path = output_raw.resolve(strict=False)
+    lock_path = output_path.parent / f".{output_path.name}.masds.lock"
+    lock_acquired = False
     staging_path: Path | None = None
     previous_hash: str | None = None
     existed = False
@@ -396,6 +398,15 @@ def execute_chunked_csv_atomic(
     input_hash: str | None = None
 
     def finish(status: str, *, cleanup_ok: bool = True, output_hash: str | None = None) -> ChunkedTransactionResult:
+        nonlocal lock_acquired
+        if lock_acquired:
+            try:
+                lock_path.unlink(missing_ok=True)
+                lock_acquired = False
+            except OSError:
+                warnings.append(
+                    "Could not remove the output lock file; manual review is required."
+                )
         try:
             preserved = (
                 output_path.exists() is False
@@ -448,6 +459,17 @@ def execute_chunked_csv_atomic(
         if source_path == output_path or (output_path.exists() and os.path.samefile(source_path, output_path)):
             raise ChunkedPathError("Source and output paths must resolve to different files.")
         output_path.parent.mkdir(parents=True, exist_ok=True)
+        failure_stage = "output_lock"
+        try:
+            with lock_path.open("x", encoding="utf-8") as lock_file:
+                lock_file.write(transaction_id)
+            lock_acquired = True
+        except FileExistsError as exc:
+            raise ChunkedPathError(
+                "Another chunked transaction already owns this output path."
+            ) from exc
+        existed = output_path.exists()
+        previous_hash = _file_sha256(output_path) if existed else None
 
         if contract is not None:
             failure_stage = "pre_contract_validation"
@@ -576,6 +598,8 @@ def execute_chunked_csv_atomic(
     except KeyboardInterrupt:
         if staging_path is not None and not keep_failed_staging:
             _cleanup_staging_file(staging_path, output_path.parent, transaction_id, warnings)
+        if lock_acquired:
+            lock_path.unlink(missing_ok=True)
         raise
     except Exception as exc:
         if failure_stage == "processing" and isinstance(exc, OSError):

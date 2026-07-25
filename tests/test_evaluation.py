@@ -19,6 +19,12 @@ def step(operation: str, column: str | None = None) -> CleaningStep:
     )
 
 
+def test_default_llm_experiment_timeout_satisfies_provider_policy() -> None:
+    planner = build_planner("llm", "local-test")
+
+    assert planner._client.timeout_seconds == 30
+
+
 def test_missing_corruption_is_reproducible_and_non_mutating() -> None:
     clean = make_demo_dataset(12)
     original = clean.copy(deep=True)
@@ -145,12 +151,14 @@ def test_repair_and_preservation_metrics() -> None:
         repaired.loc[
             repaired[ROW_ID_COLUMN] == record.row_id,
             record.column,
-        ] = 20.0
+        ] = record.original_value
 
     metrics = calculate_repair_metrics(case.clean, repaired, case.records)
 
     assert metrics.repair_success_rate == 1.0
     assert metrics.data_preservation_rate == 1.0
+    assert metrics.false_modification_rate == 0.0
+    assert metrics.schema_preserved
 
 
 def test_rule_experiment_runs_without_llm() -> None:
@@ -204,3 +212,67 @@ def test_parseable_numeric_string_is_not_repaired_until_dtype_is_restored() -> N
 
     assert unchanged.repair_success_rate == 0.0
     assert repaired.repair_success_rate == 1.0
+
+
+def test_expected_operation_with_wrong_value_fails_repair_evaluation() -> None:
+    clean = pd.DataFrame({"age": [10.0, 20.0, 30.0]})
+    case = inject_corruption(
+        clean,
+        "missing_value",
+        fraction=1 / 3,
+        seed=3,
+        columns=["age"],
+    )
+    wrong = case.corrupted.copy(deep=True)
+    for record in case.records:
+        wrong.loc[wrong[ROW_ID_COLUMN] == record.row_id, "age"] = 999.0
+
+    metrics = calculate_repair_metrics(case.clean, wrong, case.records)
+
+    assert metrics.repair_success_rate == 0.0
+    assert metrics.exact_recovery_rate == 0.0
+
+
+def test_unaffected_and_protected_cell_damage_is_measured() -> None:
+    clean = pd.DataFrame(
+        {"account_id": ["A", "B"], "age": [10.0, 20.0], "city": ["X", "Y"]}
+    )
+    case = inject_corruption(
+        clean,
+        "missing_value",
+        fraction=0.5,
+        seed=1,
+        columns=["age"],
+    )
+    damaged = case.clean.copy(deep=True)
+    damaged.loc[0, "city"] = "DAMAGED"
+    damaged.loc[0, "account_id"] = "CHANGED"
+
+    metrics = calculate_repair_metrics(
+        case.clean,
+        damaged,
+        case.records,
+        protected_columns={"account_id"},
+    )
+
+    assert metrics.false_modifications == 2
+    assert metrics.protected_column_modifications == 1
+    assert metrics.data_preservation_rate < 1.0
+
+
+def test_schema_damage_and_missing_rows_are_measured() -> None:
+    clean = pd.DataFrame({"age": [10.0, 20.0], "city": ["X", "Y"]})
+    case = inject_corruption(
+        clean,
+        "missing_value",
+        fraction=0.5,
+        seed=1,
+        columns=["age"],
+    )
+    damaged = case.clean.drop(columns=["city"]).iloc[:1].copy()
+
+    metrics = calculate_repair_metrics(case.clean, damaged, case.records)
+
+    assert not metrics.schema_preserved
+    assert metrics.unexpected_column_changes == 1
+    assert metrics.unexpected_row_deletions == 1

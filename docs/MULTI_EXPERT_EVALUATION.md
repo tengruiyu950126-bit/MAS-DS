@@ -64,8 +64,20 @@ cross-platform existing measurement mechanism is available.
 `routing_evaluation_report.md` describe routing. `ablation_runs.csv`,
 `ablation_metrics_by_configuration.csv`, `ablation_pairwise_comparison.csv`,
 `ablation_summary.json`, and `ablation_report.md` describe configurations.
-Every table has a schema version. JSON records the seeds, counts, mode, and
-reproducibility result.
+Every current table has schema version 2.0. JSON records the seeds, counts, mode,
+and reproducibility result.
+
+The reviewed public subset in `evaluation/results/public/` contains only the
+seven aggregate metric, summary, and report artifacts. It covers seeds 0–4,
+100 routing scenarios, 700 ablation runs, and seven configurations. The
+scenario table, routing predictions, and individual ablation runs remain
+ignored review evidence and are not public.
+
+`expected_operation_coverage` is an operation-label proxy, not repaired-cell
+correctness. Timings and latency-derived statistics are environment-specific
+and nondeterministic. Current routing false/unnecessary activation is about
+0.716216 and clean-data no-op accuracy is 0.0, showing that routing selectivity
+remains weak even where expected-operation coverage is high.
 
 ## Interpretation and threats to validity
 
@@ -74,4 +86,6 @@ Routing an expert does not imply a mutation because bounded experts may return n
 proposal. Synthetic labels are necessarily simplified, small bundled datasets do
 not represent every domain, operation coverage is only a repair proxy, and timing
 is machine-dependent. Inspect family-level rows for regressions rather than using
-one aggregate score as a product claim.
+one aggregate score as a product claim. The deterministic routed planner is not a
+genuine Multi-Agent System, and these results do not establish production
+readiness.

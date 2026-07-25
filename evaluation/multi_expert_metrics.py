@@ -7,6 +7,7 @@ from math import sqrt
 from statistics import mean, median, pstdev
 from typing import Iterable
 
+from evaluation.multi_expert_schema import MULTI_EXPERT_EVALUATION_SCHEMA_VERSION
 from evaluation.multi_expert_scenarios import EXPERTS, RoutingScenario
 from models.orchestration import RoutingDecision
 
@@ -21,6 +22,8 @@ def route_set(routes: Iterable[RoutingDecision]) -> set[tuple[str, str]]:
 
 def routing_metrics(
     cases: list[tuple[RoutingScenario, list[RoutingDecision]]],
+    *,
+    schema_version: str = MULTI_EXPERT_EVALUATION_SCHEMA_VERSION,
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     counts = {expert: {"tp": 0, "fp": 0, "fn": 0} for expert in EXPERTS}
     exact = clean_total = clean_ok = protected_total = protected_ok = conflicts = routed_columns = 0
@@ -44,19 +47,19 @@ def routing_metrics(
             if expert in counts:
                 counts[expert]["tp" if is_expected and is_predicted else "fp" if is_predicted else "fn"] += 1
             predictions.append({
-                "schema_version": "1.0", "scenario_id": scenario.scenario_id,
+                "schema_version": schema_version, "scenario_id": scenario.scenario_id,
                 "seed": scenario.seed, "column": column, "expert": expert,
                 "expected": is_expected, "predicted": is_predicted,
             })
     rows=[]
     for expert in EXPERTS:
         c=counts[expert]; p=_ratio(c["tp"],c["tp"]+c["fp"]); r=_ratio(c["tp"],c["tp"]+c["fn"]); f=_ratio(2*p*r,p+r)
-        rows.append({"schema_version":"1.0","specialist":expert,**c,"precision":p,"recall":r,"f1":f})
+        rows.append({"schema_version":schema_version,"specialist":expert,**c,"precision":p,"recall":r,"f1":f})
     tp=sum(c["tp"] for c in counts.values()); fp=sum(c["fp"] for c in counts.values()); fn=sum(c["fn"] for c in counts.values())
     mp=mean(float(r["precision"]) for r in rows); mr=mean(float(r["recall"]) for r in rows); mf=mean(float(r["f1"]) for r in rows)
     mip=_ratio(tp,tp+fp); mir=_ratio(tp,tp+fn)
     summary={
-        "schema_version":"1.0","evaluation_unit":"scenario-column-specialist assignment",
+        "schema_version":schema_version,"evaluation_unit":"scenario-column-specialist assignment",
         "scenario_count":len(cases),"exact_routing_accuracy":_ratio(exact,len(cases)),
         "multi_label_exact_match_ratio":_ratio(exact,len(cases)),
         "macro_precision":mp,"macro_recall":mr,"macro_f1":mf,

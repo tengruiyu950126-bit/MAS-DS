@@ -1,0 +1,9 @@
+# Constraints target the supported Python 3.11-3.13 range, subject to CI verification.
+# Install with:
+#   python -m pip install -c constraints-tested.txt -e ".[dev,evaluation]"
+# scikit-learn remains unpinned so the evaluation extra resolves a compatible release.
+numpy==2.3.4
+pandas==3.0.3
+pydantic==2.13.4
+pytest==9.1.1
+streamlit==1.58.0

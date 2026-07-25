@@ -70,6 +70,10 @@ HAND_DS_BOOK/
 *.docx
 *.pdf
 
+# Local Codex prompts and internal engineering audits
+/CHECK/
+/Need_Fix/
+
 # Databases and model weights
 *.db
 *.sqlite

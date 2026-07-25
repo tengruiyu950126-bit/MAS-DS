@@ -6,7 +6,7 @@ too large to comfortably load into memory at once.
 ## Why this exists
 
 The standard Streamlit workflow reads a CSV into a pandas DataFrame and runs the
-full graph in memory. That path is simple, auditable, and good for small to
+full deterministic preprocessing lifecycle in memory. That path is simple, auditable, and good for small to
 medium datasets, but large files can stress memory because pandas operations and
 validation may create copies.
 
@@ -89,6 +89,12 @@ failures preserve it byte-for-byte. If the destination did not exist,
 pre-commit failure leaves it absent. Cleanup targets only the exact sibling
 staging file containing the current random transaction ID and never removes a
 directory recursively.
+
+Each destination also has an exclusive sibling lock file for the duration of a
+transaction. A second writer to the same output is rejected before staging and
+cannot silently replace the first writer's result. A process crash can leave a
+stale lock; inspect the owning process and transaction metadata before manually
+removing it.
 
 The guarantee relies on `os.replace` for paths in the same directory and
 filesystem; there is no delete-then-rename sequence. Local Windows and POSIX

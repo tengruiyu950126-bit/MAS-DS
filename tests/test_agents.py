@@ -2,13 +2,13 @@ import pandas as pd
 
 from agents.cleaning_agent import RuleBasedCleaningAgent
 from agents.orchestrator import PreprocessingOrchestrator
-from agents.profiling_agent import ProfilingAgent
+from tools.profiler import profile_dataframe
 
 
-def test_profiling_agent_returns_structured_profile() -> None:
+def test_profiler_returns_structured_profile() -> None:
     dataframe = pd.DataFrame({"value": [1, None]})
 
-    profile = ProfilingAgent().run(dataframe)
+    profile = profile_dataframe(dataframe)
 
     assert profile.rows == 2
     assert profile.column_profiles["value"].missing_count == 1
