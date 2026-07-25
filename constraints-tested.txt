@@ -1,9 +1,8 @@
-# Versions verified in the local offline audit environment on Python 3.13.11.
+# Constraints target the supported Python 3.11-3.13 range, subject to CI verification.
 # Install with:
 #   python -m pip install -c constraints-tested.txt -e ".[dev,evaluation]"
-# scikit-learn is intentionally omitted because it was unavailable in the
-# verified environment; its optional tests must report a skip until installed.
-numpy==2.5.0
+# scikit-learn remains unpinned so the evaluation extra resolves a compatible release.
+numpy==2.3.4
 pandas==3.0.3
 pydantic==2.13.4
 pytest==9.1.1
