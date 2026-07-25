@@ -33,7 +33,15 @@ def _format_value(value: Any) -> str:
         return ""
     if isinstance(value, float):
         return f"{value:.4f}".rstrip("0").rstrip(".")
-    return str(value)
+    return (
+        str(value)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("|", "\\|")
+        .replace("\r", " ")
+        .replace("\n", " ")
+    )
 
 
 def _markdown_table(frame: pd.DataFrame, *, max_rows: int | None = None) -> str:

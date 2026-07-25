@@ -191,6 +191,7 @@ def plan_diff_frame(
     plan: CleaningPlan,
     *,
     max_changes_per_step: int = 500,
+    max_total_changes: int = 1_000,
 ) -> pd.DataFrame:
     """Replay ``plan`` and return a row-level/cell-level audit dataframe.
 
@@ -212,9 +213,14 @@ def plan_diff_frame(
         after_step = execute_step(before_step, step)
 
         dtype_row = _dtype_change_row(before_step, after_step, step_index, step)
-        if dtype_row is not None:
+        if dtype_row is not None and len(rows) < max_total_changes:
             rows.append(dtype_row)
 
+        remaining = max(0, max_total_changes - len(rows))
+        if remaining == 0:
+            working = after_step
+            continue
+        step_limit = min(max_changes_per_step, remaining)
         if step.operation == "drop_duplicates":
             rows.extend(
                 _removed_duplicate_rows(
@@ -222,7 +228,7 @@ def plan_diff_frame(
                     after_step,
                     step_index,
                     step,
-                    max_changes_per_step,
+                    step_limit,
                 )
             )
         else:
@@ -232,7 +238,7 @@ def plan_diff_frame(
                     after_step,
                     step_index,
                     step,
-                    max_changes_per_step,
+                    step_limit,
                 )
             )
 

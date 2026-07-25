@@ -22,7 +22,7 @@ import pandas as pd
 from models.policy import PreprocessingPolicy
 from tools.diff import diff_summary_frame, plan_diff_frame
 from tools.reporting import build_cleaning_report
-from workflow.graph import PreprocessingGraphOrchestrator
+from agents.orchestrator import PreprocessingOrchestrator
 
 
 CORE_COLUMNS = 8
@@ -225,7 +225,7 @@ def run_large_dataset_smoke(
         )
 
     policy = PreprocessingPolicy()
-    orchestrator = PreprocessingGraphOrchestrator(policy=policy)
+    orchestrator = PreprocessingOrchestrator(policy=policy)
 
     propose_started = time.perf_counter()
     proposal = orchestrator.propose(dataframe)

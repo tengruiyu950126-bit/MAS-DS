@@ -14,6 +14,7 @@ import pandas as pd
 
 from models.data_contract import ColumnContract, DataContract
 from models.policy import PreprocessingPolicy
+from evaluation.multi_expert_schema import MULTI_EXPERT_EVALUATION_SCHEMA_VERSION
 
 
 EXPERTS = (
@@ -43,9 +44,12 @@ class RoutingScenario:
     def policy(self) -> PreprocessingPolicy:
         return PreprocessingPolicy(protected_columns=list(self.protected_columns))
 
-    def metadata(self) -> dict[str, object]:
+    def metadata(
+        self,
+        schema_version: str = MULTI_EXPERT_EVALUATION_SCHEMA_VERSION,
+    ) -> dict[str, object]:
         return {
-            "schema_version": "1.0", "scenario_id": self.scenario_id,
+            "schema_version": schema_version, "scenario_id": self.scenario_id,
             "family": self.family, "seed": self.seed,
             "rows": len(self.dataframe), "columns": len(self.dataframe.columns),
             "problem_types": "|".join(self.problems),

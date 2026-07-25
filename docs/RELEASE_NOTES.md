@@ -2,108 +2,112 @@
 
 ## Current local release: v0.1.0
 
-Date: 2026-07-11
+MAS-DS is portfolio and research software for local, single-user tabular-data
+cleaning. It is not production-ready, does not support public or multi-user
+deployment, and does not guarantee semantically correct repairs.
 
-MAS-DS v0.1.0 is a local multi-agent data preprocessing system focused on safe,
-auditable, and explainable tabular-data cleaning.
+## Current architecture
 
-## Highlights
+One authoritative deterministic lifecycle performs profiling, typed planning,
+policy approval, fixed-allowlist execution, result and contract validation, and
+commit or rollback. Planner modes are:
 
-- Free local rule-based mode.
-- Optional local Ollama planner.
-- Hybrid rule + local LLM planner.
-- Streamlit UI with sample datasets and upload support.
-- Human approval before execution.
-- Safe whitelist executor.
-- Validation and rollback.
-- User-configurable safety policies.
-- Policy JSON import/export.
-- Cell-level before/after change audit.
-- Automatic Markdown cleaning report export.
-- Experiment summary aggregation.
-- Ablation and policy-control experiments.
-- Large synthetic dataset smoke test for 10,000+ rows.
-- Current verified tests: `116 passed`.
+- rule-based baseline;
+- deterministic multi-expert workflow;
+- optional bounded LLM-assisted planning through an Ollama-compatible endpoint;
+- hybrid deterministic and bounded LLM-assisted planning.
 
-## Core files
+The deterministic multi-expert workflow is not a genuine Multi-Agent System.
+Models can propose typed operations but cannot mutate production dataframes,
+approve plans, execute code, or bypass deterministic validation and rollback.
 
-| Area | Files |
-|---|---|
-| App | `app.py` |
-| Agents | `agents/` |
-| Schemas | `models/` |
-| Tools | `tools/` |
-| Workflow | `workflow/` |
-| Evaluation | `evaluation/` |
-| Policy configs | `configs/` |
-| Tests | `tests/` |
-| Handbooks | `HAND_DS_BOOK/` |
+## Release highlights
+
+- bounded UTF-8 CSV ingestion with stable failure handling;
+- explicit human approval in the Streamlit UI;
+- typed cleaning plans, preprocessing policies, and data contracts;
+- loopback model endpoints by default, explicit remote opt-in, metadata-only
+  planning by default, and bounded optional sample transmission;
+- structured value-free lifecycle diagnostics with run IDs;
+- atomic chunked output staging, validation, destination locking, and commit;
+- value-level repair and unaffected-cell preservation metrics;
+- audit exports with bounded detail and spreadsheet-formula neutralization;
+- console commands for chunked processing and deterministic evaluation;
+- offline CI on supported Python 3.11 and 3.13.
+
+## Verification
+
+The offline suite run on 2026-07-25 completed with:
+
+```text
+229 passed, 2 skipped
+```
+
+The two skips were optional scikit-learn bundled-dataset tests unavailable in
+that local environment. No external model endpoint was required. This result
+verifies repository assertions in that environment only; it is not evidence of
+general model quality, guaranteed repair, guaranteed privacy, or production
+readiness.
+
+Before release, run:
+
+```powershell
+python -m pip check
+python -m compileall -q agents evaluation models providers scripts tools
+python -m scripts.check_text_encoding
+python -m scripts.check_secret_patterns
+python -m pytest -q -ra
+```
 
 ## Important commands
 
-Start the app:
+Start the local app:
 
 ```powershell
-streamlit run app.py
+python -m streamlit run app.py
 ```
 
-Run tests:
+Run chunked preprocessing:
 
 ```powershell
-pytest
+python -m scripts.run_chunked_preprocessing --help
 ```
 
-Run rule baseline evaluation:
+Run the deterministic evaluation:
 
 ```powershell
 python -m evaluation.run_experiment --methods rule --seeds 0 1 2
 ```
 
-Run policy evaluation:
+## Public release boundary
 
-```powershell
-python -m evaluation.run_policy_experiment
-```
+Public release content may include reviewed source, tests, CI/configuration,
+sample data, policies, and public documentation.
 
-Aggregate experiment outputs:
+Exclude internal material under `CHECK/` and `Need_Fix/`, ignored private/local
+material under `HAND_DS_BOOK/`, generated `outputs/`, local environments,
+caches, logs, uploads, processed datasets, generated artifacts, private
+documents, databases, model weights, and secrets.
 
-```powershell
-python -m evaluation.summarize_outputs
-```
-
-Run large dataset smoke test:
-
-```powershell
-python -m scripts.run_large_dataset_smoke --rows 20000
-```
-
-## GitHub-ready status
-
-The project is ready for a public repository after the owner decides:
-
-1. whether to include Word `.docx` handbooks or only Markdown handbooks;
-2. which license to use;
-3. whether to include screenshots or a demo GIF.
-
-Recommended before publishing:
-
-- Keep Markdown handbooks.
-- Consider excluding generated Word binaries if the repo should stay lightweight.
-- Add screenshots under `docs/assets/` if making the GitHub page more visual.
-- Run `pytest` once more before pushing.
+Human privacy, copyright, authorship, dataset-provenance, release-archive, and
+Git-history credential reviews remain required before publication.
 
 ## Known limitations
 
-- The local LLM planner depends on the installed Ollama model.
-- LLM runs can be slow on CPU.
-- The cleaning executor intentionally supports a conservative whitelist of operations.
-- Evaluation datasets are synthetic but realistic.
-- Word document visual render QA requires LibreOffice/`soffice`, which may not be installed.
-
-## Suggested next improvements
-
-1. Add local LLM status/model checks in the UI.
-2. Add domain policy presets for customer, sales, and student data.
-3. Add charts for experiment summaries.
-4. Add screenshots or demo GIFs for GitHub.
-5. Prepare a clean release zip excluding `.venv`, caches, and generated outputs.
+- Optional model compatibility and quality depend on the installed endpoint and
+  model and are not verified by the offline suite.
+- Explicitly opted-in non-loopback endpoints may receive metadata and enabled
+  sample rows; remote plaintext HTTP is not transport-confidential.
+- Processed CSV preserves exact values, including formula-leading text; audit
+  CSV exports neutralize formula-like text.
+- Exact global duplicate and median operations in the chunked path can consume
+  memory that grows with total data.
+- Current public evaluation artifacts are a reviewed aggregate-only schema-2.0
+  subset covering seeds 0–4, 100 routing scenarios, 700 ablation runs, and
+  seven configurations. Scenario and run-level rows remain ignored review
+  evidence. Expected-operation coverage is not repaired-cell correctness;
+  timings are environment-specific. A roughly 0.716216 false/unnecessary
+  routing rate and 0.0 clean-data no-op accuracy disclose weak routing
+  selectivity. These synthetic results do not prove genuine-MAS behavior or
+  production readiness.
+- Every plan and output requires human review and domain-specific governance.

@@ -1,7 +1,7 @@
 # Data Contracts and Semantic Validation
 
 MAS-DS data contracts are local, typed declarations of dataset requirements.
-They protect multi-agent cleaning by separating semantic rules from planner
+They protect deterministic cleaning by separating semantic rules from planner
 suggestions. Contract JSON is validated by Pydantic and is never evaluated as
 code, imported as a module, or allowed to select filesystem paths.
 
@@ -77,7 +77,7 @@ sample cell values, including values that violated regexes or allowlists.
 
 ## Pre-cleaning validation
 
-The contract is evaluated before graph planning. Missing required columns are
+The contract is evaluated before preprocessing planning. Missing required columns are
 structural. Error-severity structural findings block execution and preserve the
 original dataframe. Repairable missing, type, range, category, or text
 violations remain visible but may proceed to cleaning.
@@ -101,7 +101,7 @@ or arbitrary generated-code execution.
 After execution, MAS-DS runs its original validator and the active contract.
 Contract findings become existing `ValidationIssue` records with
 `data_contract:<rule_id>` codes. Remaining error-level findings set the normal
-rollback recommendation, so the graph returns the original dataframe.
+rollback recommendation, so the authoritative orchestrator returns the original dataframe.
 Warnings are reported but do not force rollback.
 
 `PreprocessingOutcome.contract_caused_rollback` distinguishes contract-caused
@@ -123,13 +123,17 @@ and does not activate a contract.
 
 ```python
 from tools.data_contract import contract_from_json, validate_dataframe_contract
-from workflow.graph import PreprocessingGraphOrchestrator
+from agents.orchestrator import PreprocessingOrchestrator
 
 contract = contract_from_json(contract_json)
 pre = validate_dataframe_contract(dataframe, contract)
-orchestrator = PreprocessingGraphOrchestrator(contract=contract)
+orchestrator = PreprocessingOrchestrator(contract=contract)
 proposal = orchestrator.propose(dataframe)
-outcome = orchestrator.execute_approved(dataframe, proposal.plan)
+outcome = orchestrator.execute_approved(
+    dataframe,
+    proposal.plan,
+    run_id=proposal.run_id,
+)
 ```
 
 ## Reports, provenance, and privacy

@@ -43,7 +43,7 @@ The benchmark writes:
 
 ## Interpretation
 
-The key result is that both the standard in-memory graph and the new chunked
+The key result is that both the standard in-memory preprocessing pipeline and the chunked
 CSV path repaired all injected corruptions in this benchmark while preserving
 unaffected cells.
 

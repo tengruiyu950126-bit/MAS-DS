@@ -2,7 +2,7 @@ import pandas as pd
 
 from agents.multi_expert import MultiExpertCleaningAgent
 from agents.planner_factory import build_offline_planner
-from agents.profiling_agent import ProfilingAgent
+from tools.profiler import profile_dataframe
 from models.cleaning_plan import CleaningPlan, CleaningStep
 from models.policy import PreprocessingPolicy
 from tools.cleaning import execute_plan
@@ -40,7 +40,7 @@ def step(operation: str, column: str | None = None) -> CleaningStep:
 
 def test_dataset_and_profile_tables_are_readable() -> None:
     dataframe = pd.DataFrame({"age": [10.0, None, 30.0], "city": ["A", "B", "A"]})
-    profile = ProfilingAgent().run(dataframe)
+    profile = profile_dataframe(dataframe)
 
     metrics = dataset_metrics_frame(dataframe)
     profile_table = profile_frame(profile)
@@ -135,7 +135,10 @@ def test_changed_columns_frame_detects_dtype_and_value_changes() -> None:
 
 
 def test_offline_planner_factory_selects_multi_expert_agent() -> None:
-    planner = build_offline_planner("Multi-Expert", PreprocessingPolicy())
+    planner = build_offline_planner(
+        "Deterministic routed planner",
+        PreprocessingPolicy(),
+    )
 
     assert isinstance(planner, MultiExpertCleaningAgent)
     assert planner.name == "multi_expert_cleaning_agent"

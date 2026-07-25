@@ -6,7 +6,8 @@ from models.data_contract import DataContract
 from models.policy import PreprocessingPolicy
 
 
-OFFLINE_PLANNER_MODES = ("Rule-based baseline", "Multi-Expert")
+DETERMINISTIC_ROUTED_MODE = "Deterministic routed planner"
+OFFLINE_PLANNER_MODES = ("Rule-based baseline", DETERMINISTIC_ROUTED_MODE)
 
 
 def build_offline_planner(
@@ -19,6 +20,6 @@ def build_offline_planner(
     policy = policy_with_contract(policy, contract)
     if planner_mode == "Rule-based baseline":
         return RuleBasedCleaningAgent(policy=policy)
-    if planner_mode == "Multi-Expert":
+    if planner_mode == DETERMINISTIC_ROUTED_MODE:
         return MultiExpertCleaningAgent(policy=policy, contract=contract)
     raise ValueError(f"Planner mode {planner_mode!r} is not an offline planner.")

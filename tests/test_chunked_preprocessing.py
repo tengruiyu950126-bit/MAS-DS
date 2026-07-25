@@ -4,7 +4,7 @@ import pandas as pd
 
 from agents.cleaning_agent import RuleBasedCleaningAgent
 from tools.chunked import execute_chunked_csv
-from workflow.graph import PreprocessingGraphOrchestrator
+from agents.orchestrator import PreprocessingOrchestrator
 
 
 def test_chunked_preprocessing_matches_in_memory_rule_pipeline(tmp_path) -> None:
@@ -31,7 +31,7 @@ def test_chunked_preprocessing_matches_in_memory_rule_pipeline(tmp_path) -> None
 
     rule_agent = RuleBasedCleaningAgent()
     plan = rule_agent.propose(dataframe)
-    expected = PreprocessingGraphOrchestrator(
+    expected = PreprocessingOrchestrator(
         cleaning_agent=rule_agent
     ).execute_approved(dataframe, plan).dataframe
 

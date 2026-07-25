@@ -69,7 +69,7 @@ def test_json_export_contains_all_orchestration_sections() -> None:
 def test_markdown_export_contains_clear_audit_headings() -> None:
     markdown = orchestration_trace_to_markdown(build_trace())
 
-    assert "# MAS-DS Multi-Expert Orchestration Trace" in markdown
+    assert "# MAS-DS Deterministic Routed-Planner Trace" in markdown
     assert "## Summary" in markdown
     assert "## Audit Provenance" in markdown
     assert "## Router Decisions" in markdown

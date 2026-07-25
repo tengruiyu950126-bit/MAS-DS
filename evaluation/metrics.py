@@ -33,6 +33,13 @@ class RepairMetrics:
     preserved_cells: int
     total_unaffected_cells: int
     data_preservation_rate: float
+    exact_recovery_rate: float
+    false_modifications: int
+    false_modification_rate: float
+    protected_column_modifications: int
+    unexpected_row_deletions: int
+    unexpected_column_changes: int
+    schema_preserved: bool
 
 
 def expected_issues(records: list[CorruptionRecord]) -> set[IssueKey]:
@@ -94,13 +101,18 @@ def calculate_detection_metrics(
     )
 
 
-def _equal(left: Any, right: Any) -> bool:
+def _equal(left: Any, right: Any, *, numeric_tolerance: float = 1e-9) -> bool:
     if pd.isna(left) and pd.isna(right):
         return True
     if isinstance(left, pd.Timestamp) or isinstance(right, pd.Timestamp):
         try:
             return pd.Timestamp(left) == pd.Timestamp(right)
         except (TypeError, ValueError):
+            return False
+    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+        try:
+            return abs(float(left) - float(right)) <= numeric_tolerance
+        except (TypeError, ValueError, OverflowError):
             return False
     try:
         return bool(left == right)
@@ -114,15 +126,28 @@ def _rows_for_id(dataframe: pd.DataFrame, row_id: int) -> pd.DataFrame:
     return dataframe[dataframe[ROW_ID_COLUMN] == row_id]
 
 
-def _record_repaired(repaired: pd.DataFrame, record: CorruptionRecord) -> bool:
+def _record_repaired(
+    repaired: pd.DataFrame,
+    record: CorruptionRecord,
+    *,
+    numeric_tolerance: float,
+) -> bool:
     matches = _rows_for_id(repaired, record.row_id)
     if record.error_type == "duplicate_row":
         return len(matches) == 1
-    if matches.empty or record.column is None:
+    if (
+        matches.empty
+        or record.column is None
+        or record.column not in repaired.columns
+    ):
         return False
     value = matches.iloc[0][record.column]
     if record.error_type == "missing_value":
-        return pd.notna(value)
+        return _equal(
+            value,
+            record.original_value,
+            numeric_tolerance=numeric_tolerance,
+        )
     if record.error_type == "numeric_type":
         if not is_numeric_dtype(repaired[record.column]):
             return False
@@ -142,8 +167,20 @@ def calculate_repair_metrics(
     clean: pd.DataFrame,
     repaired: pd.DataFrame,
     records: list[CorruptionRecord],
+    *,
+    protected_columns: set[str] | None = None,
+    numeric_tolerance: float = 1e-9,
 ) -> RepairMetrics:
-    repaired_count = sum(_record_repaired(repaired, record) for record in records)
+    if numeric_tolerance < 0:
+        raise ValueError("numeric_tolerance must be non-negative.")
+    repaired_count = sum(
+        _record_repaired(
+            repaired,
+            record,
+            numeric_tolerance=numeric_tolerance,
+        )
+        for record in records
+    )
     affected_cells = {
         (record.row_id, record.column)
         for record in records
@@ -152,6 +189,8 @@ def calculate_repair_metrics(
 
     preserved_cells = 0
     total_unaffected_cells = 0
+    protected_modifications = 0
+    protected = protected_columns or set()
     for _, clean_row in clean.iterrows():
         row_id = int(clean_row[ROW_ID_COLUMN])
         repaired_rows = _rows_for_id(repaired, row_id)
@@ -159,11 +198,19 @@ def calculate_repair_metrics(
             if column == ROW_ID_COLUMN or (row_id, column) in affected_cells:
                 continue
             total_unaffected_cells += 1
-            if not repaired_rows.empty and _equal(
+            is_preserved = (
+                not repaired_rows.empty
+                and column in repaired_rows.columns
+                and _equal(
                 clean_row[column],
                 repaired_rows.iloc[0][column],
-            ):
+                numeric_tolerance=numeric_tolerance,
+                )
+            )
+            if is_preserved:
                 preserved_cells += 1
+            elif column in protected:
+                protected_modifications += 1
 
     repair_rate = repaired_count / len(records) if records else 1.0
     preservation_rate = (
@@ -171,6 +218,16 @@ def calculate_repair_metrics(
         if total_unaffected_cells
         else 1.0
     )
+    false_modifications = total_unaffected_cells - preserved_cells
+    clean_row_ids = set(clean[ROW_ID_COLUMN].tolist())
+    repaired_row_ids = (
+        set(repaired[ROW_ID_COLUMN].tolist())
+        if ROW_ID_COLUMN in repaired.columns
+        else set()
+    )
+    unexpected_row_deletions = max(0, len(clean_row_ids - repaired_row_ids))
+    schema_preserved = list(clean.columns) == list(repaired.columns)
+    unexpected_column_changes = len(set(clean.columns) ^ set(repaired.columns))
     return RepairMetrics(
         repaired=repaired_count,
         total_corruptions=len(records),
@@ -178,4 +235,15 @@ def calculate_repair_metrics(
         preserved_cells=preserved_cells,
         total_unaffected_cells=total_unaffected_cells,
         data_preservation_rate=preservation_rate,
+        exact_recovery_rate=repair_rate,
+        false_modifications=false_modifications,
+        false_modification_rate=(
+            false_modifications / total_unaffected_cells
+            if total_unaffected_cells
+            else 0.0
+        ),
+        protected_column_modifications=protected_modifications,
+        unexpected_row_deletions=unexpected_row_deletions,
+        unexpected_column_changes=unexpected_column_changes,
+        schema_preserved=schema_preserved and len(repaired) == len(clean),
     )

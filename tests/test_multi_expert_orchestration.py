@@ -11,7 +11,7 @@ from agents.multi_expert import (
 from models.cleaning_plan import CleaningPlan, CleaningStep
 from models.orchestration import CriticResult
 from tools.profiler import profile_dataframe
-from workflow.graph import PreprocessingGraphOrchestrator
+from agents.orchestrator import PreprocessingOrchestrator
 
 
 def make_step(operation: str, column: str | None = None, confidence: float = 1.0) -> CleaningStep:
@@ -164,7 +164,7 @@ def test_final_plan_executes_through_existing_graph_and_validation_pipeline() ->
         "city": ["Singapore", " singapore ", " singapore ", "SINGAPORE"],
     })
     planner = MultiExpertCleaningAgent()
-    orchestrator = PreprocessingGraphOrchestrator(cleaning_agent=planner)
+    orchestrator = PreprocessingOrchestrator(cleaning_agent=planner)
 
     proposal = orchestrator.propose(dataframe)
     outcome = orchestrator.execute_approved(dataframe, proposal.plan)

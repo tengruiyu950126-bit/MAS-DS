@@ -71,7 +71,7 @@ The test writes the following files under `outputs/large_1m_85/`:
 
 ## Interpretation
 
-This test confirms that MAS-DS can run its rule-based multi-agent preprocessing
+This test confirms that MAS-DS can run its rule-based preprocessing
 pipeline on a 1M-row, 85-column in-memory pandas dataset on a local machine.
 The most expensive stages are profiling/planning and execution/validation,
 which is expected because they scan or transform large columns.

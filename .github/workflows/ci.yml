@@ -1,0 +1,35 @@
+name: offline-quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install tested project surfaces
+        run: python -m pip install -c constraints-tested.txt -e ".[dev,evaluation]"
+      - name: Dependency consistency
+        run: python -m pip check
+      - name: Compile package modules
+        run: python -m compileall -q agents evaluation models providers scripts tools
+      - name: Verify text encoding
+        run: python -m scripts.check_text_encoding
+      - name: Check tracked text for credential patterns
+        run: python -m scripts.check_secret_patterns
+      - name: Run offline suite with skip reasons
+        run: python -m pytest -q -ra

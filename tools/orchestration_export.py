@@ -157,7 +157,7 @@ def orchestration_trace_to_markdown(
     provenance: AuditProvenance | dict[str, Any] | None = None,
 ) -> str:
     """Render a self-contained, human-readable orchestration audit."""
-    title = "# MAS-DS Multi-Expert Orchestration Trace"
+    title = "# MAS-DS Deterministic Routed-Planner Trace"
     if trace is None:
         return "\n".join(
             [

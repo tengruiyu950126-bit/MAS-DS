@@ -1,82 +1,84 @@
-# GitHub checklist
+# GitHub release checklist
 
-Use this checklist before publishing or updating the repository.
+Use this checklist before publishing or updating MAS-DS.
 
-Current verified test status:
+## Public release content
 
-```text
-116 passed
-```
+Include only reviewed project material:
 
-## Keep
+- source packages: `agents/`, `models/`, `tools/`, `evaluation/`, `providers/`,
+  and `scripts/`;
+- Streamlit entry point: `app.py`;
+- tests: `tests/`;
+- CI and project configuration: `.github/`, `pyproject.toml`,
+  `constraints-tested.txt`, `.env.example`, and `.gitignore`;
+- reviewed sample data and policies: `data/samples/` and `configs/`;
+- public documentation: `README.md`, `SECURITY.md`, this checklist, `docs/`,
+  and the reviewed aggregate-only schema-2.0 evaluation subset under
+  `evaluation/results/public/`.
 
-- Source code: `agents/`, `workflow/`, `models/`, `tools/`, `evaluation/`,
-  `providers/`, `scripts/`
-- Streamlit app: `app.py`
-- Project metadata: `pyproject.toml`, `.env.example`, `.gitignore`
-- Demo data: `data/samples/*.csv`
-- Tests: `tests/`
-- Documentation: `README.md`, `GITHUB_CHECKLIST.md`, `docs/`
-- Optional handbooks: `HAND_DS_BOOK/*.md`
+Exclude from the public release:
 
-## Do not upload
+- internal review material under `CHECK/` and `Need_Fix/`;
+- ignored private/local material under `HAND_DS_BOOK/`;
+- generated results under `outputs/`;
+- local environments, caches, logs, uploads, processed datasets, generated
+  artifacts, private documents, databases, model weights, and local secrets.
 
-- `.venv/`
-- `__pycache__/`
-- `.pytest_cache/`
-- `.env`
-- local/private CSV files
-- generated experiment outputs in `outputs/`
-- generated release ZIP files
+Ignored files are not automatically approved for publication. Review the final
+Git archive for privacy, copyright, authorship, credentials, and dataset rights.
 
-## Decide before publishing
+## Current product classification
 
-- License: choose a license before making the repo public.
-- Screenshots/GIF: optional but recommended for a stronger GitHub landing page.
-- Word files: keep `HAND_DS_BOOK/*.docx` only if you want binary handbook files
-  in the repo. Markdown handbooks are usually easier to review on GitHub.
+MAS-DS is a local single-user data-cleaning application with one authoritative
+deterministic lifecycle. It provides a deterministic multi-expert workflow and
+optional bounded LLM-assisted planning. It is not a genuine Multi-Agent System,
+and public or multi-user production deployment is unsupported.
 
-The `.gitignore` already covers these paths.
+## Verification before pushing
 
-## Before pushing
-
-Run:
+From the repository root, run:
 
 ```powershell
-pytest
+python -m pip check
+python -m compileall -q agents evaluation models providers scripts tools
+python -m scripts.check_text_encoding
+python -m scripts.check_secret_patterns
+python -m pytest -q -ra
 ```
 
-Optionally smoke-test the UI:
+The offline run dated 2026-07-25 completed with `229 passed, 2 skipped`. The two
+skips were optional scikit-learn bundled-dataset tests unavailable in that local
+environment. This result verifies the tested assertions only; it does not prove
+general repair correctness, model quality, privacy, or production readiness.
+
+After an authorized push or pull request, confirm both Python jobs in the
+`offline-quality` GitHub Actions workflow. Also run an approved history-aware
+secret scan with redacted output and inspect a Git-generated release archive.
+
+Optional local UI smoke test:
 
 ```powershell
-streamlit run app.py
+python -m streamlit run app.py
 ```
 
-For a fast no-model demo, use:
+Use a sample dataset and the rule-based baseline for an offline, no-model smoke
+path. Review every proposed plan and output.
 
-1. **Sample dataset**
-2. **Inject demo issues**
-3. **Rule-based baseline**
-4. **Approve and apply plan**
+## Release metadata
 
-This path is fully local and costs no money.
+- Confirm the MIT license and citation metadata are correct.
+- Keep screenshots or demo media only when reviewed and intentionally tracked.
+- Do not add private handbooks or generated release archives.
 
-## Useful docs
-
-- `docs/DEMO_SCRIPT.md`: step-by-step demo flow.
-- `docs/RELEASE_NOTES.md`: current release summary and known limitations.
-- `HAND_DS_BOOK/MAS_DS_REPORT_ZH.md`: Chinese project handbook.
-- `HAND_DS_BOOK/MAS_DS_REPORT_EN.md`: English project handbook.
-
-## Recommended GitHub description
+Recommended GitHub description:
 
 ```text
-Free local multi-agent system for safe, auditable tabular-data preprocessing.
+Local deterministic workflow for auditable tabular-data preprocessing.
 ```
 
-## Suggested tags
+Suggested topics:
 
 ```text
-llm-agents, multi-agent-system, data-cleaning, preprocessing, streamlit,
-langgraph, ollama, python, data-quality
+data-cleaning, preprocessing, streamlit, pandas, ollama, python, data-quality
 ```

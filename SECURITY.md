@@ -1,42 +1,47 @@
-# Security policy
+# Security and Privacy
 
-## Supported status
+## Supported deployment
 
-MAS-DS is an early-stage research and portfolio project. Security fixes are
-provided on the latest branch only; there is currently no long-term-support
-release. Cleaning plans and outputs must be reviewed before use.
+MAS-DS supports local single-user execution. Public or multi-tenant hosting is
+not supported. There is no authentication, authorization, tenant isolation, or
+server-side retention/deletion service.
 
-## Reporting a vulnerability
+## Security boundary
 
-Use the repository's private GitHub Security Advisory channel after the public
-repository is created. If private vulnerability reporting is unavailable,
-open a minimal issue requesting a private contact channel without including
-exploit details, credentials, private datasets, or sensitive logs.
+Planners and models may only propose typed operations. Deterministic code
+enforces policy, protected columns, operation allowlists, execution,
+validation, data contracts, and rollback. No generated code is executed.
 
-Do not attach confidential CSV files, contracts, traces, reports, environment
-files, or screenshots containing real data to a public issue.
+## Model data
 
-## Security model
+Ollama-compatible endpoints are loopback-only unless a user explicitly opts in
+to a remote destination. Model planning is metadata-only by default. Enabling
+sample rows transmits bounded cell values to the configured endpoint. Embedded
+URL credentials are rejected. Application logs must never contain cells,
+prompts, responses, credentials, or endpoint URLs.
 
-- Rule-based and Multi-Expert processing runs locally.
-- Cleaning is limited to typed, whitelisted operations.
-- Contracts and planner output are treated as data; MAS-DS does not use
-  `eval`, `exec`, dynamic imports, or arbitrary generated-code execution.
-- Identifier-like and explicitly protected columns are excluded from automatic
-  mutation and checked again during critique and validation.
-- Candidate results are validated before commit; failed validation follows the
-  rollback path. Chunked CSV output uses same-filesystem staging and atomic
-  replacement where the filesystem supports it.
-- Local LLM support is optional and uses a user-managed Ollama service. No paid
-  or cloud API is required by the project.
+## File handling
 
-These controls reduce risk but do not guarantee correct cleaning, complete
-privacy, or fitness for a regulated workflow.
+The Streamlit path enforces documented byte, row, column, header, and cell
+limits and accepts UTF-8 CSV only. Larger files belong on the chunked CLI path.
+Processed CSV preserves exact values; audit CSV neutralizes formula-like text.
 
-## Secrets and sensitive data
+## Sensitive local content
 
-Never commit `.env`, `.streamlit/secrets.toml`, API keys, tokens, passwords,
-private connection strings, uploaded datasets, or processed user outputs.
-Use environment variables for optional local configuration and review every
-trace/report before sharing. If a credential is committed, rotate it first;
-deleting it from the working tree does not remove it from Git history.
+`.env`, uploads, generated/private data, outputs, logs, databases, model
+weights, local documents, virtual environments, and caches are ignored. Ignore
+rules are not privacy approval. Review local/ignored files and Git history
+before publication. Revoke any credential found in history before sanitizing
+files.
+
+## Reporting
+
+Report vulnerabilities privately to the repository owner. Include affected
+version, reproduction steps using synthetic data, impact, and suggested
+mitigation. Never include real user data or complete credentials.
+
+## Non-guarantees
+
+The project does not guarantee correct repair, confidentiality of data sent to
+an explicitly configured remote endpoint, filesystem durability under hardware
+failure, regulatory compliance, or safe public hosting.

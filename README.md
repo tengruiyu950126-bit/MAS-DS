@@ -1,292 +1,195 @@
 # MAS-DS
 
-MAS-DS is a local, deterministic multi-expert orchestration system for
-explainable dataframe and CSV preprocessing. It profiles data, proposes typed
-cleaning operations, requires review, validates candidate results, and rolls
-back changes that fail safety or error-level data-contract checks.
+MAS-DS is a local, policy-constrained data-cleaning application for CSV and
+pandas dataframes. It proposes typed cleaning operations, requires explicit
+approval in the UI, executes only a fixed operation allowlist, validates the
+candidate result, and returns the original dataframe when validation requires
+rollback.
 
-The project is research and portfolio software, not a guarantee of correct or
-regulation-compliant data processing. Review every cleaning plan before
-execution and every output before downstream use.
+It is portfolio and research software. It is not production-ready, is not a
+hosted multi-tenant service, and does not guarantee that a cleaning decision is
+semantically correct.
 
-## Main use case
+## Implemented planner modes
 
-MAS-DS helps inspect and conservatively repair common tabular-data issues:
+1. **Rule-based baseline** — deterministic heuristics with no model dependency.
+2. **Deterministic routed planner** — a fixed local Router/rule-specialist/review
+   pipeline with an inspectable trace. Despite the internal historical class
+   names, this is not a genuine multi-agent system.
+3. **Local Ollama model** — one bounded structured-output model proposal.
+4. **Hybrid rule + Ollama** — deterministic rules plus a bounded model proposal,
+   with deterministic fallback when the model endpoint fails.
 
-- duplicate rows and missing values;
-- numeric text and advisory IQR outlier flags;
-- categorical case and narrowly evidenced typo normalization;
-- text whitespace;
-- strongly evidenced datetime conversion;
-- schema and semantic requirements expressed as Data Contracts.
+All modes produce a typed `CleaningPlan`. A planner cannot execute Python,
+shell commands, SQL, arbitrary code, or dataframe mutations. Only deterministic
+application code may approve and execute allowlisted operations; contract
+validation and rollback are never delegated to a model.
 
-It supports in-memory pandas workflows and transactional chunked CSV processing.
+## Privacy and model endpoints
 
-## Key features
+Ollama-compatible endpoints are loopback-only by default. Non-loopback HTTP(S)
+destinations require explicit UI opt-in. URLs containing credentials are
+rejected.
 
-- Rule-based, local Ollama, hybrid, graph, and deterministic Multi-Expert planners.
-- RouterAgent plus six bounded specialists: duplicate, missing-value, numeric,
-  categorical, text, and datetime experts.
-- CriticAgent review and conservative Arbiter plan assembly.
-- Typed Pydantic `CleaningPlan`, policy, contract, trace, provenance, validation,
-  and transaction models.
-- Protected identifier columns and user-defined protected-column policy.
-- Pre-cleaning and post-cleaning semantic validation.
-- Validation-driven rollback and atomic same-filesystem chunked output replacement.
-- Read-only Streamlit orchestration trace with JSON and Markdown export.
-- Value-free audit provenance using deterministic SHA-256 fingerprints.
-- Seeded routing evaluation, baselines, ablations, and bundled public-dataset checks.
-- No arbitrary generated-code execution.
+Model planning sends:
 
-## Architecture
+- column names and aggregate profile metadata;
+- the configured model name;
+- zero sample rows by default.
 
-```mermaid
-flowchart LR
-    A[DataFrame or CSV] --> B[Profile]
-    B --> C[Planner]
-    C --> D[Human review]
-    D --> E[Whitelisted executor]
-    E --> F[Validation and contract checks]
-    F -->|pass| G[Commit]
-    F -->|fail| H[Rollback]
-```
+Users may explicitly enable up to three bounded sample rows in the UI. Those
+cell values are then transmitted to the displayed configured endpoint. Do not
+enable samples or a remote endpoint for data you are not authorized to
+transmit. Prompts, rows, endpoint URLs, credentials, and full model responses
+are not logged.
 
-Multi-Expert planning makes the decision stages explicit:
+## In-memory limits
 
-```text
-DataFrame + DataProfile
-  -> RouterAgent
-  -> bounded specialist proposals
-  -> CriticAgent
-  -> Arbiter
-  -> CleaningPlan
-  -> existing approval/execution/validation/rollback path
-```
+The Streamlit upload path accepts UTF-8 CSV files with these default maximums:
 
-| Component | Responsibility |
-|---|---|
-| RouterAgent | Assigns observed column or dataset issues to suitable specialists while excluding protected columns. |
-| DuplicateExpert | Proposes exact duplicate-row removal. |
-| MissingValueExpert | Proposes conservative median/mode filling or `leave_unchanged`. |
-| NumericExpert | Proposes lossless numeric conversion and non-mutating outlier flags. |
-| CategoricalExpert | Proposes conservative case or typo normalization when evidence exists. |
-| TextExpert | Proposes bounded whitespace cleanup. |
-| DatetimeExpert | Proposes conversion only with strong, lossless datetime evidence. |
-| CriticAgent | Rejects protected, unknown, redundant, conflicting, or unsafe proposals. |
-| Arbiter | Deduplicates and deterministically assembles an executor-compatible plan. |
+| Limit | Value |
+|---|---:|
+| Upload bytes | 10,000,000 |
+| Rows | 100,000 |
+| Columns | 200 |
+| Header length | 128 characters |
+| Cell length | 10,000 characters |
+| Preview rows | 50 |
+| Detailed diff rows | 1,000 |
+| Report audit rows | 100 |
 
-Specialists only propose typed operations. They never modify the dataframe and
-never produce executable source code.
-
-## Data Contracts, validation, and rollback
-
-Optional JSON-serializable Data Contracts support required, optional, protected,
-nullable, typed, range-constrained, allowlisted, unique, regex-constrained,
-datetime-bounded, and text-length-constrained columns. Warning findings are
-reported without forcing rollback. Remaining error findings after cleaning cause
-the existing validation path to return the original dataframe.
-
-Example:
-
-```json
-{
-  "name": "Orders contract",
-  "schema_version": "1.0",
-  "required_columns": ["order_id", "amount"],
-  "protected_columns": ["order_id"],
-  "columns": {
-    "order_id": {"nullable": false, "unique": true},
-    "amount": {
-      "allowed_dtypes": ["number"],
-      "nullable": false,
-      "numeric_min": 0,
-      "severity": "error"
-    },
-    "region": {
-      "allowed_values": ["APAC", "EMEA", "LATAM", "North America"],
-      "severity": "warning"
-    }
-  }
-}
-```
-
-Contract content is parsed as data and cannot select paths, import modules, or
-execute code.
-
-## Chunked and atomic CSV processing
-
-Chunked processing profiles and transforms bounded chunks while preserving
-cross-chunk duplicate tracking, global fill values, and streaming contract
-validation. Processed rows are written to a unique staging file beside the final
-destination. MAS-DS validates the complete staged CSV and commits with
-`os.replace` only after success. An existing destination remains unchanged until
-that replacement.
-
-```powershell
-python -m scripts.run_chunked_preprocessing `
-  --input data\samples\customers_dirty.csv `
-  --output outputs\chunked_customers_cleaned.csv `
-  --chunk-size 10000
-```
-
-Atomic replacement relies on same-filesystem rename guarantees. File locks,
-permissions, full disks, abnormal process termination, and unusual network
-filesystems can still prevent a commit.
+Empty, malformed, non-UTF-8, duplicate-header, and oversized inputs are
+rejected before planning. Use the chunked CLI for larger files.
 
 ## Installation
 
-Python 3.11 or newer is declared. The publication audit and full suite were run
-with Python 3.13.11; other declared versions were not exercised during that audit.
+Supported Python versions are 3.11 through 3.13.
 
 ```powershell
-git clone <repository-url>
-cd MAS_DS
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev,evaluation]"
+python -m pip install -c constraints-tested.txt -e ".[dev,evaluation]"
 ```
 
-Core dependencies are NumPy, pandas, Pydantic, LangGraph, and Streamlit.
-scikit-learn is optional for bundled public-dataset evaluation. Ollama is an
-optional separately installed local service; LangChain and paid/cloud SDKs are
-not core requirements.
+`constraints-tested.txt` records the versions verified locally. scikit-learn is
+an optional evaluation dependency and was unavailable in the latest local test
+run; its two benchmark tests therefore skipped.
 
-## Quick start
+`.env.example` is a shell-environment example. MAS-DS does not automatically
+load `.env` files.
 
-Start the UI:
+## Run
 
 ```powershell
 python -m streamlit run app.py
 ```
 
-Then select a sample or upload a local CSV, choose **Rule-based baseline** or
-**Multi-Expert**, optionally select a Data Contract, review the proposed plan,
-and approve it only if the operations are appropriate for the dataset.
-
-For Multi-Expert mode, open **Multi-Expert Orchestration Trace** to inspect the
-Router decisions, specialist proposals, Critic decisions, and Arbiter-selected
-steps. The viewer is read-only and does not bypass approval or validation.
-
-## CLI and evaluation examples
-
-Run a rule-based experiment:
+Chunked processing:
 
 ```powershell
-python -m evaluation.run_experiment --methods rule --seeds 0 1 2
+mas-ds-chunked `
+  --input data\samples\customers_dirty.csv `
+  --output outputs\customers_cleaned.csv
 ```
 
-Run the routing and ablation suite without overwriting an existing result folder:
+The equivalent repository command is:
 
 ```powershell
-python -m evaluation.multi_expert_evaluation `
-  --output-dir outputs\multi_expert_evaluation_run `
-  --seeds 0 1 2 3 4
+python -m scripts.run_chunked_preprocessing --help
 ```
 
-Run the bundled public-dataset benchmark when the evaluation extra is installed:
+## Execution model
 
-```powershell
-python -m evaluation.real_dataset_benchmark --output-dir outputs\real_dataset_benchmark
+```mermaid
+flowchart LR
+    A[Bounded CSV or dataframe] --> B[Profile]
+    B --> C[Selected planner proposes typed plan]
+    C --> D[Human or caller approval]
+    D --> E[Policy-constrained deterministic executor]
+    E --> F[Structural and data-contract validation]
+    F -->|pass| G[Return candidate]
+    F -->|fail| H[Return defensive copy of original]
 ```
 
-All deterministic modes and evaluation tools run locally and require no API key.
-Local Ollama modes are optional and are not needed for tests or evaluation.
+The in-memory UI, experiments, and benchmarks use one authoritative lifecycle
+in `agents/orchestrator.py`. The former fixed LangGraph duplicate was removed.
 
-## Evaluation methodology and measured results
+The chunked CLI has a specialized file transaction adapter: it writes a unique
+sibling staging file, validates it, and calls `os.replace` only after success.
+See [chunked processing](docs/CHUNKED_PREPROCESSING.md) for filesystem and
+failure limitations.
 
-Ground truth is declared independently from Router output. The latest reviewed
-run used five seeds, 110 scenarios, and 770 ablation runs. It included synthetic
-corruptions, clean/protected controls, contract-protected cases, mixed issues,
-and small datasets bundled with scikit-learn.
+## Evaluation
 
-| Metric | Measured value |
-|---|---:|
-| Routing macro F1 | 0.6818 |
-| Routing micro F1 | 0.3802 |
-| False-routing rate | 0.7629 |
-| Missed-routing rate | 0.0417 |
-| Protected-column exclusion accuracy | 1.0000 |
-| Clean-dataset routing no-op accuracy | 0.0000 |
-| NumericExpert precision | 0.1282 |
-| CategoricalExpert precision | 0.0732 |
-| Full Multi-Expert detection F1 | 0.5714 |
-| Rule-baseline detection F1 | 0.5165 |
-| Full Multi-Expert labeled repair success | 1.0000 |
-| Rule-baseline labeled repair success | 0.8636 |
-| Oracle-router detection F1 | 0.9806 |
+The canonical corruption evaluation retains a clean dataframe and a cell-level
+corruption map. Metrics include:
 
-These results show improved labeled repair coverage over the rule baseline in
-this suite, but they do **not** show an optimal Router. Numeric and categorical
-experts are activated too broadly, producing low precision, a high false-routing
-rate, and zero clean-dataset routing no-op accuracy. Oracle routing identifies
-routing selectivity as the largest measured opportunity.
+- exact or explicitly tolerant corrupted-cell recovery;
+- unaffected-cell preservation and false modification rate;
+- protected-column modifications;
+- unexpected row/column loss;
+- schema preservation;
+- planning precision/recall and rollback outcomes.
 
-Removing the Critic or Arbiter did not change aggregate repair on naturally
-generated bounded proposals. Their safety contribution appeared in controlled
-unsafe/conflict fixtures, and full orchestration provided the complete trace.
-No statistical-significance claim is made. Synthetic labels, small bundled
-datasets, operation-coverage repair proxies, and machine-dependent latency limit
-generalization.
+Selecting the expected operation is not counted as repair unless the resulting
+value matches clean ground truth. The deterministic routed-planner benchmark
+uses schema 2.0 and names its operation proxy
+`expected_operation_coverage`; it is not a repaired-cell metric.
 
-Reviewed, value-free result summaries are in
-[`evaluation/results/public/`](evaluation/results/public/).
+The reviewed public subset under `evaluation/results/public/` now uses schema
+2.0 and contains aggregate artifacts only: 100 routing scenarios and 700
+ablation runs across seven configurations and seeds 0–4. Scenario, prediction,
+and run-level rows remain ignored review evidence. The routing
+false/unnecessary-activation rate is approximately 0.716216 and clean-dataset
+no-op accuracy is 0.0, so routing selectivity remains weak. Timings are
+environment-specific and nondeterministic. These synthetic results do not prove
+production quality, genuine multi-agent behavior, or repaired-cell correctness.
 
-## Testing
+## Verification
 
-```powershell
-python -m pytest -q
-```
-
-The latest publication audit passed 201 tests. Tests are deterministic and do
-not require internet access, paid APIs, Ollama, or a live Streamlit server.
-
-## Security and privacy
-
-- Data processing is local in Rule-based and Multi-Expert modes.
-- No arbitrary LLM-generated code is executed.
-- Raw dataframe cells are excluded from provenance and orchestration metadata.
-- Protected columns are checked at multiple planning and validation boundaries.
-- `.env`, Streamlit secrets, local outputs, logs, virtual environments, uploads,
-  generated reports, and temporary staging files are excluded from publication.
-- Processed CSV downloads necessarily contain processed data and remain the
-  user's responsibility.
-
-See [SECURITY.md](SECURITY.md). These controls reduce risk; they do not guarantee
-privacy, semantic correctness, or suitability for sensitive production data.
-
-## Project structure
+Latest local offline run on 2026-07-25:
 
 ```text
-agents/        planners, Router, specialists, Critic, Arbiter, validation
-models/        typed Pydantic contracts and result models
-tools/         profiling, execution, contracts, provenance, reports, chunking
-workflow/      graph-based approval, execution, validation, commit, rollback
-evaluation/    datasets, metrics, benchmarks, ablations, public summaries
-scripts/       local command-line entry points
-data/samples/  small deterministic synthetic CSV examples
-tests/         deterministic unit, integration, rollback, and safety tests
-docs/          architecture, contract, chunking, benchmark, and E2E guides
+229 passed, 2 skipped
 ```
+
+The two skips were optional scikit-learn bundled-dataset tests. This result
+verifies the assertions in that environment only; it is not proof of semantic
+correctness, production safety, or model quality.
+
+No external model endpoint is required for the offline suite.
+
+## Exports
+
+Processed CSV downloads preserve exact data values. Spreadsheet applications
+may interpret cells beginning with formula characters; inspect untrusted data
+before opening it. Audit CSV exports neutralize formula-like text because that
+does not change the processed dataset. Markdown tables escape untrusted HTML
+and table separators, and detailed audits are bounded.
+
+## Deployment classification
+
+MAS-DS is a **local single-user application**. It has no authentication,
+authorization, tenant isolation, hosted retention/deletion service, public
+rate limiting, or supported multi-user deployment configuration. Do not expose
+it as a public service without a separate product and security design.
+
+## Repository safety
+
+The following remain local and ignored: `.env`, uploads, private/generated data,
+`outputs/`, logs, `.venv/`, caches, databases, model weights, PDFs/DOCX files,
+and `HAND_DS_BOOK/`. Ignored files still require manual privacy, copyright, and
+credential review before publication or release.
 
 ## Documentation
 
-- [Data Contracts](docs/DATA_CONTRACTS.md)
-- [Chunked preprocessing and atomic output](docs/CHUNKED_PREPROCESSING.md)
-- [Multi-Expert orchestration](docs/MULTI_EXPERT_ORCHESTRATION.md)
-- [Multi-Expert evaluation](docs/MULTI_EXPERT_EVALUATION.md)
-- [Streamlit E2E checklist](docs/STREAMLIT_E2E_CHECKLIST.md)
-- [Real dataset benchmark](docs/REAL_DATASET_BENCHMARK.md)
-- [Demo script](docs/DEMO_SCRIPT.md)
-- [Large-dataset stress-test methodology](docs/LARGE_DATASET_STRESS_TEST.md)
-- [Release notes](docs/RELEASE_NOTES.md)
-- [Contributing](CONTRIBUTING.md)
+- [Data contracts](docs/DATA_CONTRACTS.md)
+- [Chunked processing](docs/CHUNKED_PREPROCESSING.md)
+- [Evaluation limitations](docs/MULTI_EXPERT_EVALUATION.md)
 - [Security policy](SECURITY.md)
+- [Contributing](CONTRIBUTING.md)
 
-## License and disclaimer
+## License
 
-Released under the [MIT License](LICENSE).
-
-The software is provided without warranty. It is not a substitute for domain
-review, data governance, privacy assessment, security review, or regulatory
-validation. Always retain an independent backup and inspect proposed and
-processed data before use.
+MIT. Review every plan and output before downstream use. Retain independent
+backups and apply domain-specific governance for real user data.

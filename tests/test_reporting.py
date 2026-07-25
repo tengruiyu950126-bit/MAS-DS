@@ -50,7 +50,7 @@ def test_cleaning_report_contains_core_audit_sections() -> None:
     assert "## Change audit" in report
     assert "fill_median" in report
     assert "value_changed" in report
-    assert "<missing>" in report
+    assert "&lt;missing&gt;" in report
 
 
 def test_cleaning_report_explains_rollback_candidate_changes() -> None:
@@ -150,3 +150,25 @@ def test_cleaning_report_includes_data_contract_audit() -> None:
     assert "2.0" in report
     assert provenance.contract_fingerprint in report
     assert "contract_caused_rollback" in report
+
+
+def test_markdown_report_escapes_untrusted_table_content() -> None:
+    before = pd.DataFrame({"note": ["<script>alert(1)</script>|next"]})
+    plan = CleaningPlan(steps=[])
+    validation = validate_preprocessing(before, before.copy(), plan)
+
+    report = build_cleaning_report(
+        before=before,
+        after=before,
+        plan=plan,
+        validation=validation,
+        execution_records=[],
+        policy=PreprocessingPolicy(),
+        planner_name="<planner>",
+        source_label="<source>|unsafe",
+        rolled_back=False,
+    )
+
+    assert "<script>" not in report
+    assert "&lt;source&gt;\\|unsafe" in report
+    assert "\\|" in report

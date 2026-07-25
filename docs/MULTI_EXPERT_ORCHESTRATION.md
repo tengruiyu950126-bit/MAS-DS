@@ -99,10 +99,10 @@ violations use the established rollback path. See `DATA_CONTRACTS.md`.
 
 ```python
 from agents.multi_expert import MultiExpertCleaningAgent
-from workflow.graph import PreprocessingGraphOrchestrator
+from agents.orchestrator import PreprocessingOrchestrator
 
 planner = MultiExpertCleaningAgent()
-orchestrator = PreprocessingGraphOrchestrator(cleaning_agent=planner)
+orchestrator = PreprocessingOrchestrator(cleaning_agent=planner)
 proposal = orchestrator.propose(dataframe)
 
 # Inspect coordination before approval.
@@ -111,7 +111,11 @@ print(trace.routes)
 print(trace.specialist_proposals)
 print(trace.critique)
 
-outcome = orchestrator.execute_approved(dataframe, proposal.plan)
+outcome = orchestrator.execute_approved(
+    dataframe,
+    proposal.plan,
+    run_id=proposal.run_id,
+)
 ```
 
 No internet, paid API, or LLM is used by this planner.
@@ -269,3 +273,12 @@ Read `docs/MULTI_EXPERT_EVALUATION.md` for metric definitions, schemas,
 interpretation guidance, and threats to validity. Use
 `docs/STREAMLIT_E2E_CHECKLIST.md` for a real local UI walkthrough with the
 existing `.venv`.
+
+The reviewed public schema-2.0 subset contains aggregate artifacts only for
+seeds 0–4, 100 routing scenarios, 700 ablation runs, and seven configurations.
+Scenario, prediction, and run-level rows remain ignored review evidence.
+Expected-operation coverage is not repaired-cell correctness, and latency is
+environment-specific. The approximately 0.716216 false/unnecessary routing
+rate and 0.0 clean-data no-op accuracy show that routing selectivity remains a
+known limitation. These synthetic results do not establish genuine-MAS behavior
+or production readiness.
